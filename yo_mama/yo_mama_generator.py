@@ -51,9 +51,8 @@ class YoMamaGenerator:
         self.api_key = api_key
         self.model_name = model_name
         
-        # Configure Gemini
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model_name)
+        # Create Gemini client
+        self.client = genai.Client(api_key=api_key)
         
         logger.info(f"Initialized YoMamaGenerator with model: {model_name}")
     
@@ -101,7 +100,10 @@ class YoMamaGenerator:
         
         try:
             # Generate the joke
-            response = self.model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt
+            )
             joke = response.text.strip()
             
             logger.info(f"Generated {flavor} joke (M:{meanness}, N:{nerdiness})")
