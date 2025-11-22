@@ -1,13 +1,13 @@
-# Stream Daemon Scripts
+# YoMama-as-a-Service Scripts
 
-This directory contains utility scripts for Stream Daemon setup, configuration, and management.
+This directory contains utility scripts for YoMama bot setup, configuration, and management.
 
-## 🔧 Installation & Setup
+## 🔧 Available Scripts
 
 ### create-secrets.sh
 **Interactive secrets setup wizard**
 
-Helps you configure credentials across multiple secrets management platforms.
+Helps you configure API keys and bot credentials across multiple secrets management platforms.
 
 **Usage:**
 ```bash
@@ -16,26 +16,21 @@ Helps you configure credentials across multiple secrets management platforms.
 
 **Features:**
 - ✅ Supports Doppler, AWS Secrets Manager, HashiCorp Vault, and .env files
-- ✅ Interactive prompts for all platforms
+- ✅ Interactive prompts for Discord and Matrix credentials
+- ✅ Gemini API key configuration
 - ✅ Loads existing .env values as defaults
-- ✅ Separates config from secrets (when using secrets managers)
 - ✅ Environment-aware (dev/staging/production)
-
-**Documentation:**
-- [Secrets Wizard Guide](../docs/configuration/secrets-wizard.md)
-- [Config vs Secrets Behavior](../docs/configuration/secrets-wizard-behavior.md)
-- [Quick Reference](../docs/configuration/secrets-quick-reference.md)
 
 ---
 
-### install-systemd.sh
+### install-yomama.sh
 **systemd service installation script**
 
-Installs Stream Daemon as a Linux systemd service with automatic startup.
+Installs YoMama-as-a-Service as a Linux systemd service with automatic startup.
 
 **Usage:**
 ```bash
-sudo ./scripts/install-systemd.sh
+sudo ./scripts/install-yomama.sh
 ```
 
 **Features:**
@@ -46,19 +41,16 @@ sudo ./scripts/install-systemd.sh
 - ✅ Sets up proper permissions and security
 - ✅ Loads configuration from .env file
 
-**Documentation:**
-- [systemd Service Guide](../docs/getting-started/systemd-service.md)
-
 ---
 
-### uninstall-systemd.sh
+### uninstall-yomama.sh
 **systemd service removal script**
 
-Removes the Stream Daemon systemd service and optionally cleans up Docker resources.
+Removes the YoMama systemd service and optionally cleans up Docker resources.
 
 **Usage:**
 ```bash
-sudo ./scripts/uninstall-systemd.sh
+sudo ./scripts/uninstall-yomama.sh
 ```
 
 **Features:**
@@ -87,7 +79,6 @@ Helps set up Matrix bot credentials and room configuration.
 **All scripts require:**
 - Linux operating system
 - Bash shell
-- Run from the project root directory (not from within scripts/)
 
 **create-secrets.sh requires:**
 - Python 3.10+ installed
@@ -96,15 +87,11 @@ Helps set up Matrix bot credentials and room configuration.
   - AWS CLI for AWS Secrets Manager
   - Vault CLI for HashiCorp Vault
 
-**install-systemd.sh requires:**
+**install-yomama.sh requires:**
 - Root/sudo access
 - systemd (Linux)
 - For Python mode: Python 3.10+, pip
 - For Docker mode: Docker, Docker Compose
-
-**uninstall-systemd.sh requires:**
-- Root/sudo access
-- systemd (Linux)
 
 ---
 
@@ -119,69 +106,32 @@ Helps set up Matrix bot credentials and room configuration.
 
 2. **Install as service:**
    ```bash
-   sudo ./scripts/install-systemd.sh
+   sudo ./scripts/install-yomama.sh
    ```
 
 3. **Manage service:**
    ```bash
-   sudo systemctl status stream-daemon
-   sudo systemctl stop stream-daemon
-   sudo systemctl start stream-daemon
-   sudo journalctl -u stream-daemon -f
+   sudo systemctl status yomama-bot
+   sudo systemctl stop yomama-bot
+   sudo systemctl start yomama-bot
+   sudo journalctl -u yomama-bot -f
    ```
 
 **To uninstall:**
 ```bash
-sudo ./scripts/uninstall-systemd.sh
+sudo ./scripts/uninstall-yomama.sh
 ```
-
----
-
-## 🔍 How Scripts Find the Project
-
-All scripts automatically detect the project directory:
-
-```bash
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-```
-
-This means:
-- Scripts can be run from anywhere
-- `PROJECT_DIR` always points to the project root
-- `.env` file is looked for in `PROJECT_DIR/.env`
-- No manual path configuration needed
-
----
-
-## 🛠️ Development
-
-**Adding a new script:**
-
-1. Create script in `scripts/` directory
-2. Make it executable: `chmod +x scripts/your-script.sh`
-3. Use proper path detection:
-   ```bash
-   SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-   PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-   ```
-4. Reference project files via `$PROJECT_DIR`:
-   ```bash
-   source "$PROJECT_DIR/.env"
-   python "$PROJECT_DIR/stream-daemon.py"
-   ```
-5. Update this README with script documentation
-6. Update main README.md if it's a user-facing script
 
 ---
 
 ## 📚 See Also
 
-- [Stream Daemon Documentation](../docs/README.md)
-- [Installation Guide](../docs/getting-started/installation.md)
-- [Secrets Management](../docs/configuration/secrets.md)
-- [Contributing Guide](../CONTRIBUTING.md)
+- [Main README](../README.md)
+- [Quick Start Guide](../QUICKSTART.md)
+- [Bot Setup Guide](../BOT_SETUP.md)
+- [Secrets Management](../SECRETS_MANAGEMENT.md)
+- [Docker Guide](../DOCKER.md)
 
 ---
 
-**Happy scripting! 🚀**
+**Happy roasting! 🎤🔥**

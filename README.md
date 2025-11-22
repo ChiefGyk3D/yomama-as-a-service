@@ -35,7 +35,19 @@ An AI-powered Yo Mama joke generator that crafts customized roasts using Google 
 
 ## 🚀 Quick Start
 
-### Option 1: Docker (Recommended for Production) 🐳
+### Option 1: Automated Installation (Linux/systemd) 🚀
+
+```bash
+# Interactive secrets setup
+./scripts/create-secrets.sh
+
+# Install as systemd service
+sudo ./scripts/install-yomama.sh
+```
+
+See [scripts/README.md](scripts/README.md) for full script documentation.
+
+### Option 2: Docker (Recommended for Production) 🐳
 
 ```bash
 # Build and run with Docker
@@ -48,7 +60,7 @@ docker-compose logs -f
 
 See [DOCKER.md](DOCKER.md) for complete Docker documentation.
 
-### Option 2: Local Installation
+### Option 3: Manual Local Installation
 
 #### 1. Install Dependencies
 
