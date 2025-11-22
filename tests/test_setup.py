@@ -81,8 +81,8 @@ def test_config():
         
         # Check for API key
         if config.gemini_api_key:
-            # Mask the key for security
-            masked = config.gemini_api_key[:8] + "..." + config.gemini_api_key[-4:]
+            # Mask the key for security - only show first 4 chars
+            masked = config.gemini_api_key[:4] + "..." + ("*" * 8)
             print(f"   ✓ GEMINI_API_KEY found: {masked}")
         else:
             print("   ⚠️  GEMINI_API_KEY not set")

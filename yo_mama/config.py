@@ -114,7 +114,7 @@ class Config:
         try:
             return int(value)
         except ValueError:
-            logger.warning(f"Invalid integer value for {key}: {value}")
+            logger.warning(f"Invalid integer value for {key}")
             return default
     
     # Specific configuration getters
