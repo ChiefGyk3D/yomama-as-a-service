@@ -132,6 +132,8 @@ class MatrixBot:
                 await self._cmd_flavors(room)
             elif command == 'help':
                 await self._cmd_help(room)
+            elif command == 'thegame':
+                await self._cmd_thegame(room)
             else:
                 await self._send_message(room, f"Unknown command: {command}. Try !help")
         except Exception as e:
@@ -175,6 +177,16 @@ class MatrixBot:
         
         joke = self.generator.random_joke()
         await self._send_message(room, f"🎲 {joke}")
+    
+    async def _cmd_thegame(self, room: MatrixRoom):
+        """Handle !thegame command (Easter egg)."""
+        joke = self.generator.generate_joke(
+            flavor="thegame",
+            meanness=10,  # Always maximum savage
+            nerdiness=5,
+            target_name=None
+        )
+        await self._send_message(room, f"🎮💀 {joke}\n\n_You just lost The Game. Sorry! 😈_")
     
     async def _cmd_batch(self, room: MatrixRoom, args: list):
         """Handle !batch command."""
@@ -327,8 +339,8 @@ class MatrixBot:
             else:
                 logger.info(f"Using existing access token for {self.user_id}")
             
-            # Sync and run forever
-            await self.client.sync_forever(timeout=30000, full_state=True)
+            # Sync and run forever (only process new messages)
+            await self.client.sync_forever(timeout=30000, full_state=False)
         except Exception as e:
             logger.error(f"Bot error: {e}")
             raise
