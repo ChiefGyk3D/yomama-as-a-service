@@ -141,7 +141,7 @@ class YoMamaGenerator:
         
         # Define flavor-specific context
         flavor_contexts = {
-            'classic': 'CLASSIC traditional Yo Mama jokes - use timeless formats like "so fat", "so ugly", "so old", "so stupid", "so poor", "so hairy", "so short", "so tall". Examples: "Yo mama so fat when she sits around the house, she sits AROUND the house", "Yo mama so fat when she got on the scale it said \'I need your weight not your phone number\'", "Yo mama so fat I took a picture of her last Christmas and it\'s still printing", "Yo mama like a race car she burns 4 rubbers a day". Keep it traditional, punchy, and non-technical.',
+            'classic': 'CLASSIC traditional Yo Mama jokes - use timeless formats like "so fat", "so ugly", "so old", "so stupid", "so poor", "so hairy", "so short", "so tall". Examples: "Yo mama so fat when sitting around the house, literally sits AROUND the house", "Yo mama so fat the scale said \'I need your weight not your phone number\'", "Yo mama so fat I took a picture last Christmas and it\'s still printing". Keep it traditional, punchy, and non-technical. Use gender-neutral language.',
             'cybersecurity': 'cybersecurity, hacking, vulnerabilities, security tools like CrowdStrike, Shodan, Suricata, Wazuh, firewalls, encryption, CVEs',
             'tech': 'technology, computers, software, hardware, operating systems, IT support, tech companies',
             'linux': 'Linux, Unix, open source, command line, distros, kernel, bash, system administration, package managers',
@@ -205,6 +205,7 @@ REQUIREMENTS:
 - Be creative and clever
 - Keep it concise (1-2 sentences max)
 - Make it funny and original
+- Use gender-neutral language: avoid pronouns like "she/her/he/him" - use "they/them" or avoid pronouns entirely
 
 EXAMPLES for reference (adjust based on parameters):
 
