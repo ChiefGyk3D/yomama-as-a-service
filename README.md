@@ -298,7 +298,6 @@ The bot uses a comprehensive priority system for secrets:
 Yo_Mama/
 ├── main.py                        # Main entry point (CLI/Discord/Matrix)
 ├── demo.py                        # API usage demonstrations
-├── test_setup.py                  # Legacy configuration test script
 ├── requirements.txt               # Python dependencies
 ├── .env.example                   # Example configuration
 ├── setup.sh                       # Automated setup
@@ -309,7 +308,8 @@ Yo_Mama/
 │   ├── __init__.py
 │   ├── test_imports.py            # Dependency import tests
 │   ├── test_config.py             # Configuration tests
-│   └── test_generator.py          # Generator tests
+│   ├── test_generator.py          # Generator tests
+│   └── test_setup.py              # Legacy configuration test script
 └── yo_mama/                       # Main package
     ├── __init__.py
     ├── config.py                  # Configuration management
@@ -360,7 +360,7 @@ pytest tests/test_generator.py -v  # Test generator
 pytest tests/ --cov=yo_mama --cov-report=html
 
 # Legacy test script (still available)
-python test_setup.py
+python tests/test_setup.py
 
 # Test joke generation
 python main.py -f tech -m 5 -n 5
