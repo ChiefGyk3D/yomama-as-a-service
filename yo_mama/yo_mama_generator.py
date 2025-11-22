@@ -94,7 +94,7 @@ class YoMamaGenerator:
         else:
             flavor = flavor.lower()
         
-        meanness = max(1, min(10, meanness))
+        meanness = max(1, min(11, meanness))  # These go to eleven!
         nerdiness = max(1, min(10, nerdiness))
         
         # Build the prompt
@@ -169,7 +169,8 @@ class YoMamaGenerator:
             7: 'harsh and pointed, definitely stinging',
             8: 'brutal and savage, no holding back',
             9: 'devastatingly mean, almost cruel',
-            10: 'ABSOLUTELY RUTHLESS AND DEVASTATING - go for the jugular with no mercy whatsoever. Use the most cutting, brutal, savage insults possible. Make it genuinely offensive and shocking. Hold nothing back. This should be emotionally destructive and leave lasting damage. Nuclear-level roast that would make a comedian wince.'
+            10: 'absolutely merciless and nuclear-level savage',
+            11: 'THESE GO TO ELEVEN - ABSOLUTELY RUTHLESS AND DEVASTATING - go for the jugular with no mercy whatsoever. Use the most cutting, brutal, savage insults possible. Make it genuinely offensive and shocking. Hold nothing back. This should be emotionally destructive and leave lasting damage. Thermonuclear-level roast that would make a comedian wince. ONE LOUDER than 10.'
         }
         
         # Define nerdiness guidance
