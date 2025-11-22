@@ -34,6 +34,10 @@ class MatrixBot:
         
         # Get Matrix configuration
         self.homeserver = self.config.get_secret('MATRIX_HOMESERVER', 'https://matrix.org')
+        # Ensure homeserver URL has a protocol
+        if not self.homeserver.startswith(('http://', 'https://')):
+            self.homeserver = f'https://{self.homeserver}'
+        
         self.user_id = self.config.get_secret('MATRIX_USER_ID')
         self.access_token = self.config.get_secret('MATRIX_ACCESS_TOKEN')
         self.password = self.config.get_secret('MATRIX_PASSWORD')
