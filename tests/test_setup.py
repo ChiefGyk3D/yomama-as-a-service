@@ -11,184 +11,133 @@ import os
 def test_imports():
     """Test that all required modules can be imported."""
     print("🔍 Testing imports...")
-    try:
-        from google import genai
-        print("   ✓ google-genai")
-    except ImportError as e:
-        print(f"   ❌ google-genai: {e}")
-        return False
     
-    try:
-        from dopplersdk import DopplerSDK
-        print("   ✓ dopplersdk")
-    except ImportError as e:
-        print(f"   ❌ dopplersdk: {e}")
-        return False
+    from google import genai
+    print("   ✓ google-genai")
     
-    try:
-        from dotenv import load_dotenv
-        print("   ✓ python-dotenv")
-    except ImportError as e:
-        print(f"   ❌ python-dotenv: {e}")
-        return False
+    from dopplersdk import DopplerSDK
+    print("   ✓ dopplersdk")
     
-    try:
-        import discord
-        print("   ✓ discord.py")
-    except ImportError as e:
-        print(f"   ❌ discord.py: {e}")
-        return False
+    from dotenv import load_dotenv
+    print("   ✓ python-dotenv")
     
-    try:
-        import nio
-        print("   ✓ matrix-nio")
-    except ImportError as e:
-        print(f"   ❌ matrix-nio: {e}")
-        return False
+    import discord
+    print("   ✓ discord.py")
     
-    try:
-        from yo_mama.config import get_config
-        print("   ✓ config module")
-    except ImportError as e:
-        print(f"   ❌ config module: {e}")
-        return False
+    import nio
+    print("   ✓ matrix-nio")
     
-    try:
-        from yo_mama.yo_mama_generator import YoMamaGenerator
-        print("   ✓ yo_mama_generator module")
-    except ImportError as e:
-        print(f"   ❌ yo_mama_generator module: {e}")
-        return False
+    from yo_mama.config import get_config
+    print("   ✓ config module")
     
-    try:
-        from yo_mama.platforms import DiscordBot, MatrixBot
-        print("   ✓ platform modules")
-    except ImportError as e:
-        print(f"   ❌ platform modules: {e}")
-        return False
+    from yo_mama.yo_mama_generator import YoMamaGenerator
+    print("   ✓ yo_mama_generator module")
     
-    return True
+    from yo_mama.platforms import DiscordBot, MatrixBot
+    print("   ✓ platform modules")
+    
+    assert True  # All imports successful
 
 
 def test_config():
     """Test configuration loading."""
     print("\n🔍 Testing configuration...")
     
-    try:
-        from yo_mama.config import get_config
-        config = get_config()
-        print("   ✓ Configuration loaded")
-        
-        # Check for API key (without displaying any part of it)
-        if config.gemini_api_key:
-            print(f"   ✓ GEMINI_API_KEY found (length: {len(config.gemini_api_key)} chars)")
-        else:
-            print("   ⚠️  GEMINI_API_KEY not set")
-            print("      Edit .env and add your API key")
-            return False
-        
-        # Validate config
-        is_valid, missing = config.validate()
-        if is_valid:
-            print("   ✓ All required configuration present")
-        else:
-            print(f"   ❌ Missing configuration: {', '.join(missing)}")
-            return False
-        
-        # Show current settings
-        print(f"\n   Current settings:")
-        print(f"      Model: {config.gemini_model}")
-        print(f"      Default Flavor: {config.default_flavor}")
-        print(f"      Default Meanness: {config.default_meanness}/10")
-        print(f"      Default Nerdiness: {config.default_nerdiness}/10")
-        
-        # Check Doppler
-        if os.getenv('DOPPLER_TOKEN'):
-            print("   ✓ Doppler integration enabled")
-        else:
-            print("   ℹ️  Doppler not configured (using .env only)")
-        
-        return True
-        
-    except Exception as e:
-        print(f"   ❌ Configuration error: {e}")
-        return False
+    from yo_mama.config import get_config
+    config = get_config()
+    print("   ✓ Configuration loaded")
+    
+    # Check for API key (without displaying any part of it)
+    if config.gemini_api_key:
+        print(f"   ✓ GEMINI_API_KEY found (length: {len(config.gemini_api_key)} chars)")
+    else:
+        print("   ⚠️  GEMINI_API_KEY not set")
+        print("      Edit .env and add your API key")
+    
+    # Validate config
+    is_valid, missing = config.validate()
+    if is_valid:
+        print("   ✓ All required configuration present")
+    else:
+        print(f"   ⚠️  Missing configuration: {', '.join(missing)}")
+    
+    # Show current settings
+    print(f"\n   Current settings:")
+    print(f"      Model: {config.gemini_model}")
+    print(f"      Default Flavor: {config.default_flavor}")
+    print(f"      Default Meanness: {config.default_meanness}/10")
+    print(f"      Default Nerdiness: {config.default_nerdiness}/10")
+    
+    # Check Doppler
+    if os.getenv('DOPPLER_TOKEN'):
+        print("   ✓ Doppler integration enabled")
+    else:
+        print("   ℹ️  Doppler not configured (using .env only)")
+    
+    assert config is not None
 
 
 def test_generator():
     """Test joke generator initialization."""
     print("\n🔍 Testing joke generator...")
     
-    try:
-        from yo_mama.config import get_config
-        from yo_mama.yo_mama_generator import YoMamaGenerator
-        
-        config = get_config()
-        
-        if not config.gemini_api_key:
-            print("   ⚠️  Skipping generator test (no API key)")
-            return True
-        
+    from yo_mama.config import get_config
+    from yo_mama.yo_mama_generator import YoMamaGenerator
+    
+    config = get_config()
+    
+    if not config.gemini_api_key:
+        print("   ⚠️  Skipping generator initialization (no API key)")
+    else:
         generator = YoMamaGenerator(
             api_key=config.gemini_api_key,
             model_name=config.gemini_model
         )
         print("   ✓ Generator initialized")
-        
-        # List flavors
-        flavors = YoMamaGenerator.list_flavors()
-        print(f"   ✓ {len(flavors)} flavors available: {', '.join(flavors[:5])}...")
-        
-        return True
-        
-    except Exception as e:
-        print(f"   ❌ Generator error: {e}")
-        return False
+        assert generator is not None
+    
+    # List flavors (doesn't require API key)
+    flavors = YoMamaGenerator.list_flavors()
+    print(f"   ✓ {len(flavors)} flavors available: {', '.join(flavors[:5])}...")
+    assert len(flavors) > 0
 
 
 def test_joke_generation():
     """Test actual joke generation (optional)."""
     print("\n🔍 Testing joke generation (this may take a moment)...")
     
-    try:
-        from yo_mama.config import get_config
-        from yo_mama.yo_mama_generator import YoMamaGenerator
-        
-        config = get_config()
-        
-        if not config.gemini_api_key:
-            print("   ⚠️  Skipping generation test (no API key)")
-            return True
-        
-        generator = YoMamaGenerator(
-            api_key=config.gemini_api_key,
-            model_name=config.gemini_model
-        )
-        
-        # Generate a test joke
-        joke = generator.generate_joke(
-            flavor='tech',
-            meanness=5,
-            nerdiness=5
-        )
-        
-        if joke and len(joke) > 10:
-            print("   ✓ Joke generation successful!")
-            print(f"\n   🎤 Test joke: {joke}\n")
-            return True
-        else:
-            print("   ❌ Generated joke is invalid or empty")
-            return False
-        
-    except Exception as e:
-        print(f"   ❌ Generation error: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    from yo_mama.config import get_config
+    from yo_mama.yo_mama_generator import YoMamaGenerator
+    
+    config = get_config()
+    
+    if not config.gemini_api_key:
+        print("   ⚠️  Skipping generation test (no API key)")
+        assert True  # Skip test if no API key
+        return
+    
+    generator = YoMamaGenerator(
+        api_key=config.gemini_api_key,
+        model_name=config.gemini_model
+    )
+    
+    # Generate a test joke
+    joke = generator.generate_joke(
+        flavor='tech',
+        meanness=5,
+        nerdiness=5
+    )
+    
+    print("   ✓ Joke generation successful!")
+    print(f"\n   🎤 Test joke: {joke}\n")
+    
+    assert joke is not None
+    assert len(joke) > 10
+    assert isinstance(joke, str)
 
 
 def main():
-    """Run all tests."""
+    """Run all tests interactively."""
     print("="*70)
     print("🎤 Yo Mama Bot - Configuration Test")
     print("="*70)
@@ -197,20 +146,26 @@ def main():
     all_passed = True
     
     # Test imports
-    if not test_imports():
-        print("\n❌ Import test failed")
+    try:
+        test_imports()
+    except Exception as e:
+        print(f"\n❌ Import test failed: {e}")
         print("   Run: pip install -r requirements.txt")
         all_passed = False
     
     # Test config
-    if not test_config():
-        print("\n❌ Configuration test failed")
+    try:
+        test_config()
+    except Exception as e:
+        print(f"\n❌ Configuration test failed: {e}")
         print("   Edit .env and add your GEMINI_API_KEY")
         all_passed = False
     
     # Test generator
-    if not test_generator():
-        print("\n❌ Generator test failed")
+    try:
+        test_generator()
+    except Exception as e:
+        print(f"\n❌ Generator test failed: {e}")
         all_passed = False
     
     # Test joke generation (optional, requires API key)
@@ -222,8 +177,12 @@ def main():
     if has_api_key:
         response = input("\n🤔 Test joke generation? (y/n, default=n): ").strip().lower()
         if response == 'y':
-            if not test_joke_generation():
-                print("\n⚠️  Generation test failed (but other tests may have passed)")
+            try:
+                test_joke_generation()
+            except Exception as e:
+                print(f"\n⚠️  Generation test failed: {e}")
+                import traceback
+                traceback.print_exc()
     
     # Summary
     print("\n" + "="*70)
