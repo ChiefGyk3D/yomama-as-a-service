@@ -79,11 +79,9 @@ def test_config():
         config = get_config()
         print("   ✓ Configuration loaded")
         
-        # Check for API key
+        # Check for API key (without displaying any part of it)
         if config.gemini_api_key:
-            # Mask the key for security - only show first 4 chars
-            masked = config.gemini_api_key[:4] + "..." + ("*" * 8)
-            print(f"   ✓ GEMINI_API_KEY found: {masked}")
+            print(f"   ✓ GEMINI_API_KEY found (length: {len(config.gemini_api_key)} chars)")
         else:
             print("   ⚠️  GEMINI_API_KEY not set")
             print("      Edit .env and add your API key")
