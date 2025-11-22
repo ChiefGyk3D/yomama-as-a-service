@@ -1,6 +1,6 @@
 # 🎤 YoMama-as-a-Service
 
-![YoMama-as-a-Service Banner](https://raw.githubusercontent.com/ChiefGyk3D/yomama-as-a-service/main/media/banner.png)
+<img src="https://raw.githubusercontent.com/ChiefGyk3D/yomama-as-a-service/main/media/banner.png" alt="YoMama-as-a-Service Banner" width="600">
 
 ## *Deploying Insults at Scale* 🚀
 
