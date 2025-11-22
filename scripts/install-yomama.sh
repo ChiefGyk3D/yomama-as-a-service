@@ -213,6 +213,14 @@ fi
 
 echo -e "${GREEN}✓${NC} Service file created: $SERVICE_FILE"
 
+# Check if service exists and stop it
+if systemctl is-active --quiet "$SERVICE_NAME"; then
+    echo ""
+    echo "Stopping existing service..."
+    sudo systemctl stop "$SERVICE_NAME"
+    echo -e "${GREEN}✓${NC} Existing service stopped"
+fi
+
 # Reload systemd
 sudo systemctl daemon-reload
 echo -e "${GREEN}✓${NC} Systemd reloaded"
