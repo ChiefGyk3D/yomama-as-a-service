@@ -133,7 +133,7 @@ class MatrixBot:
             elif command == 'help':
                 await self._cmd_help(room)
             elif command == 'thegame':
-                await self._cmd_thegame(room)
+                await self._cmd_thegame(room, args)
             else:
                 await self._send_message(room, f"Unknown command: {command}. Try !help")
         except Exception as e:
@@ -156,9 +156,7 @@ class MatrixBot:
             await self._send_message(room, "❌ Nerdiness must be between 1 and 10")
             return
         
-        # Generate joke
-        await self._send_message(room, "🎤 Generating joke...")
-        
+        # Generate joke (no "generating" message to avoid leaving error messages)
         joke = self.generator.generate_joke(
             flavor=flavor,
             meanness=meanness,
@@ -173,20 +171,29 @@ class MatrixBot:
     
     async def _cmd_random(self, room: MatrixRoom):
         """Handle !random command."""
-        await self._send_message(room, "🎲 Generating random joke...")
-        
         joke = self.generator.random_joke()
         await self._send_message(room, f"🎲 {joke}")
     
-    async def _cmd_thegame(self, room: MatrixRoom):
+    async def _cmd_thegame(self, room: MatrixRoom, args: list = None):
         """Handle !thegame command (Easter egg)."""
+        # Extract user mention if provided (Matrix format: @user:server.com)
+        target_name = None
+        if args and len(args) > 0:
+            # Check if it's a Matrix user mention
+            if args[0].startswith('@'):
+                # Extract just the username part before the colon
+                target_name = args[0].split(':')[0][1:]  # Remove @ and server part
+        
         joke = self.generator.generate_joke(
             flavor="thegame",
             meanness=11,  # THESE GO TO ELEVEN! 🎸
             nerdiness=5,
-            target_name=None
+            target_name=target_name
         )
-        await self._send_message(room, f"🎮💀 {joke}\n\n_You just lost The Game. Sorry! 😈_")
+        
+        # Mention the user if provided
+        mention_text = f"{args[0]} " if args and len(args) > 0 and args[0].startswith('@') else ""
+        await self._send_message(room, f"{mention_text}🎮💀 {joke}\n\n_You just lost The Game. Sorry! 😈_")
     
     async def _cmd_batch(self, room: MatrixRoom, args: list):
         """Handle !batch command."""
