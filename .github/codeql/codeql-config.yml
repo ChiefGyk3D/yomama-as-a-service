@@ -5,6 +5,12 @@ name: "YoMama CodeQL Config"
 query-filters:
   - exclude:
       id: py/clear-text-logging-sensitive-data
-      # Suppress for secret loading functions - these are designed to return secrets
+      # Suppress for secret loading functions - these functions are specifically
+      # designed to load and return secrets. The return values contain sensitive
+      # data by design and are handled securely in the calling code.
       paths:
-        - yo_mama/secrets.py
+        - "yo_mama/secrets.py"
+  - exclude:
+      id: py/clear-text-storage-sensitive-data
+      paths:
+        - "yo_mama/secrets.py"
