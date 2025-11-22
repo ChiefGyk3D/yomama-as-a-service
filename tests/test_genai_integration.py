@@ -85,10 +85,13 @@ class TestGenaiIntegration(unittest.TestCase):
             # Should return rate limit joke instead of crashing
             joke = generator.generate_joke(flavor='tech', meanness=5, nerdiness=5)
             
-            # Should get a rate-limit fallback joke
+            # Should get a rate-limit/quota fallback joke
             self.assertIsNotNone(joke)
             self.assertGreater(len(joke), 0)
-            self.assertIn("rate limit", joke.lower())
+            # Check for rate limit OR quota keywords
+            joke_lower = joke.lower()
+            self.assertTrue("rate limit" in joke_lower or "quota" in joke_lower,
+                          f"Expected rate limit/quota message, got: {joke}")
     
     @unittest.skipIf(not os.getenv('GEMINI_API_KEY'), "Requires GEMINI_API_KEY")
     def test_real_api_call(self):
