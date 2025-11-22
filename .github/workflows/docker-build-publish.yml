@@ -18,7 +18,7 @@ name: Docker Build & Publish
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
     tags:
       - 'v*.*.*'
   pull_request:
