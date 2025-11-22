@@ -107,7 +107,7 @@ class DiscordBot:
             app_commands.Choice(name="🚀 DevOps", value="devops"),
             app_commands.Choice(name="🗄️ Database", value="database"),
             app_commands.Choice(name="📻 Amateur Radio (Ham Radio)", value="radio"),
-            # Hidden Easter egg - type "thegame" manually
+            app_commands.Choice(name="❓ Secret...", value="thegame"),  # Easter egg
         ])
         async def joke_slash(
             interaction: discord.Interaction,
@@ -215,6 +215,7 @@ class DiscordBot:
             app_commands.Choice(name="🚀 DevOps", value="devops"),
             app_commands.Choice(name="🗄️ Database", value="database"),
             app_commands.Choice(name="📻 Amateur Radio (Ham Radio)", value="radio"),
+            app_commands.Choice(name="❓ Secret...", value="thegame"),  # Easter egg
         ])
         async def batch_slash(
             interaction: discord.Interaction,
@@ -365,12 +366,28 @@ class DiscordBot:
             """Generate a Yo Mama joke (text command)"""
             async with ctx.typing():
                 try:
-                    joke = self.generator.generate_joke(
-                        flavor=flavor,
-                        meanness=meanness,
-                        nerdiness=nerdiness
-                    )
-                    await ctx.send(f"🎤 {joke}")
+                    logger.info(f"Text command received: flavor='{flavor}', type={type(flavor)}")
+                    # Special handling for "thegame" Easter egg
+                    if flavor and flavor.lower() == "thegame":
+                        joke = self.generator.generate_joke(
+                            flavor="thegame",
+                            meanness=10,  # Always maximum savage
+                            nerdiness=5,
+                            target_name=None
+                        )
+                        embed = discord.Embed(
+                            description=f"🎮💀 {joke}",
+                            color=discord.Color.purple()
+                        )
+                        embed.set_footer(text="You just lost The Game. Sorry! 😈")
+                        await ctx.send(embed=embed)
+                    else:
+                        joke = self.generator.generate_joke(
+                            flavor=flavor,
+                            meanness=meanness,
+                            nerdiness=nerdiness
+                        )
+                        await ctx.send(f"🎤 {joke}")
                 except Exception as e:
                     await ctx.send(f"❌ Error: {str(e)}")
         
@@ -382,6 +399,27 @@ class DiscordBot:
                 try:
                     joke = self.generator.random_joke()
                     await ctx.send(f"🎲 {joke}")
+                except Exception as e:
+                    await ctx.send(f"❌ Error: {str(e)}")
+        
+        # Text command: !thegame (Easter egg)
+        @self.bot.command(name='thegame')
+        async def thegame_text(ctx):
+            """You just lost The Game! (Easter egg)"""
+            async with ctx.typing():
+                try:
+                    joke = self.generator.generate_joke(
+                        flavor="thegame",
+                        meanness=10,  # Always maximum savage
+                        nerdiness=5,
+                        target_name=None
+                    )
+                    embed = discord.Embed(
+                        description=f"🎮💀 {joke}",
+                        color=discord.Color.purple()
+                    )
+                    embed.set_footer(text="You just lost The Game. Sorry! 😈")
+                    await ctx.send(embed=embed)
                 except Exception as e:
                     await ctx.send(f"❌ Error: {str(e)}")
         
