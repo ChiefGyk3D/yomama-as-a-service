@@ -88,11 +88,24 @@ class DiscordBot:
         # Slash command: /joke
         @self.bot.tree.command(name="joke", description="Generate a Yo Mama joke")
         @app_commands.describe(
-            flavor="Joke flavor (cybersecurity, tech, linux, etc.)",
+            flavor="Joke flavor",
             meanness="How mean (1-10, default: 5)",
             nerdiness="How nerdy (1-10, default: 5)",
             target="Custom target name (default: yo mama)"
         )
+        @app_commands.choices(flavor=[
+            app_commands.Choice(name="🎭 Classic (Traditional Yo Mama)", value="classic"),
+            app_commands.Choice(name="🔒 Cybersecurity", value="cybersecurity"),
+            app_commands.Choice(name="💻 Tech (General Technology)", value="tech"),
+            app_commands.Choice(name="🐧 Linux", value="linux"),
+            app_commands.Choice(name="🌐 General", value="general"),
+            app_commands.Choice(name="🎮 Gaming", value="gaming"),
+            app_commands.Choice(name="👨‍💻 Programming", value="programming"),
+            app_commands.Choice(name="🌐 Networking", value="networking"),
+            app_commands.Choice(name="☁️ Cloud", value="cloud"),
+            app_commands.Choice(name="🚀 DevOps", value="devops"),
+            app_commands.Choice(name="🗄️ Database", value="database"),
+        ])
         async def joke_slash(
             interaction: discord.Interaction,
             flavor: Optional[str] = None,
@@ -168,6 +181,19 @@ class DiscordBot:
             meanness="How mean (1-10)",
             nerdiness="How nerdy (1-10)"
         )
+        @app_commands.choices(flavor=[
+            app_commands.Choice(name="🎭 Classic (Traditional Yo Mama)", value="classic"),
+            app_commands.Choice(name="🔒 Cybersecurity", value="cybersecurity"),
+            app_commands.Choice(name="💻 Tech (General Technology)", value="tech"),
+            app_commands.Choice(name="🐧 Linux", value="linux"),
+            app_commands.Choice(name="🌐 General", value="general"),
+            app_commands.Choice(name="🎮 Gaming", value="gaming"),
+            app_commands.Choice(name="👨‍💻 Programming", value="programming"),
+            app_commands.Choice(name="🌐 Networking", value="networking"),
+            app_commands.Choice(name="☁️ Cloud", value="cloud"),
+            app_commands.Choice(name="🚀 DevOps", value="devops"),
+            app_commands.Choice(name="🗄️ Database", value="database"),
+        ])
         async def batch_slash(
             interaction: discord.Interaction,
             count: int = 3,
@@ -274,9 +300,22 @@ class DiscordBot:
             
             # Flavors section
             flavors = YoMamaGenerator.list_flavors()
+            flavor_list = [
+                "� `classic` - Traditional Yo Mama jokes",
+                "🔒 `cybersecurity` - Hacking & security",
+                "💻 `tech` - General technology",
+                "🐧 `linux` - Linux & Unix",
+                "🌐 `general` - Everyday tech",
+                "🎮 `gaming` - Video games",
+                "👨‍💻 `programming` - Coding",
+                "🌐 `networking` - Networks",
+                "☁️ `cloud` - Cloud computing",
+                "🚀 `devops` - DevOps & CI/CD",
+                "🗄️ `database` - Databases"
+            ]
             embed.add_field(
                 name="🎯 Available Flavors",
-                value=", ".join([f"`{f}`" for f in flavors[:5]]) + f"\n...and {len(flavors) - 5} more! Use `/flavors` for full list",
+                value="\n".join(flavor_list),
                 inline=False
             )
             
