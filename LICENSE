@@ -1,0 +1,135 @@
+Mozilla Public License Version 2.0
+=================================
+
+1. Definitions
+
+   1.1. "Contributor" means each individual or legal entity that creates, contributes to
+   or owns Covered Software.
+
+   1.2. "Contributor Version" means the combination of the Contributions of others
+   (if any) used by a Contributor and that particular Contributor's Contribution.
+
+   1.3. "Contribution" means Covered Software of a particular Contributor.
+
+   1.4. "Covered Software" means Source Code Form to which the initial Contributor
+   has attached the notice in Exhibit A, the Executable Form of such Source Code Form,
+   and Modifications of such Source Code Form, in each case including portions thereof.
+
+   1.5. "Incompatible With Secondary Licenses" means that the initial Contributor has
+   attached the notice in Exhibit B to the Covered Software; provided, however, that
+   if such a notice is attached to Covered Software which was made available prior to
+   the date of version 2.0 of the License, it has the meaning given in the version of
+   the License in effect for that Covered Software at the time it was made available.
+
+   1.6. "Executable Form" means any form of the work other than Source Code Form.
+
+   1.7. "Larger Work" means a work which combines Covered Software with other material,
+   in a separate file or files, that is not Covered Software.
+
+   1.8. "License" means this document.
+
+   1.9. "Licensable" means having the right to grant, to the maximum extent possible,
+   whether at law or otherwise, all of the rights conveyed by this License.
+
+   1.10. "Modifications" means any of the following:
+        a) any file in Source Code Form that results from an addition to, deletion from
+           or modification of the contents of Covered Software; or
+        b) any new file in Source Code Form that contains any Covered Software.
+
+   1.11. "Patent Claims" means patent claim(s), now owned or hereafter acquired,
+   including without limitation, method, process, and apparatus claims, in any
+   patent Licensable by a Contributor.
+
+   1.12. "Source Code Form" means the form of the work preferred for making modifications.
+
+   1.13. "You" (or "Your") means an individual or a legal entity exercising rights under
+   this License who has not previously violated the License with respect to the Covered
+   Software, or who has received express permission from the current copyright holder
+   to exercise rights under this License despite a previous violation.
+
+2. License Grants and Conditions
+
+   2.1. Grants
+
+        Each Contributor hereby grants You a world-wide, royalty-free, non-exclusive
+        license:
+
+        a) under intellectual property rights other than Patent Claims, to use,
+           reproduce, modify, display, perform, distribute, and sublicense the
+           Contribution of such Contributor, if any, and such rights apply to the
+           Covered Software as a whole; and
+
+        b) under Patent Claims to make, use, sell, offer for sale, have made,
+           import, and otherwise transfer the Contribution of such Contributor,
+           if any, in Source Code or Executable form. This patent license shall
+           apply to the combination of the Contribution and Covered Software
+           if, at the time the Contribution is added by the Contributor, such
+           addition of the Contribution causes such combination to be covered
+           by the Patent Claims.
+
+   2.2. Effective Date
+
+        The licenses granted in Sections 2.1(a) and (b) are effective on the
+        date the Contributor first makes the Contribution available under the
+        terms of this License.
+
+   2.3. Limitations
+
+        Except as expressly stated in this License, no right or license is granted
+        to You, whether express or implied, by estoppel, or otherwise in or under
+        any patents, trademarks, trade secrets, or other intellectual property rights
+        of any Contributor.
+
+   2.4. Required Notices
+
+        You must retain the notices in the Source Code Form and include them in
+        redistributions of the Source Code Form of Covered Software.
+
+3. Distribution Obligations
+
+   3.1. Availability of Source Code
+
+        Any Covered Software that You distribute in Executable Form must also be
+        made available in Source Code Form under the terms of this License.
+
+   3.2. Modifications
+
+        If You create or contribute to Modifications, You may distribute the
+        Modifications only under the terms of this License.
+
+4. Incompatible With Secondary Licenses
+
+   If the Covered Software is made available under the terms described in Exhibit B
+   of this License, then You may choose to comply with the terms of the Secondary
+   License instead of this License for the Covered Software.
+
+5. Disclaimer of Warranty
+
+   Covered Software is provided "AS IS" without warranty of any kind, either express
+   or implied, including, without limitation, any warranties that the Covered Software
+   is free of defects, merchantable, fit for a particular purpose or non-infringing.
+
+6. Limitation of Liability
+
+   In no event will any Contributor be liable to You for damages arising out of the
+   use or inability to use the Covered Software.
+
+7. Miscellaneous
+
+   This License represents the complete agreement concerning the subject matter
+   hereof. If any provision of this License is held to be unenforceable, invalid,
+   or void, that provision will be interpreted to reflect the parties' intent, and
+   the remaining provisions will remain in full force and effect.
+
+Exhibit A - Source Code Form License Notice
+
+This Source Code Form is subject to the terms of the Mozilla Public License,
+version 2.0. If a copy of the MPL was not distributed with this file, You can
+obtain one at http://mozilla.org/MPL/2.0/.
+
+Exhibit B - Form to be Attached to Covered Software
+
+If a Contributor includes the notice described in Exhibit B in Covered Software,
+it is considered "Incompatible With Secondary Licenses" as defined by Section 1.5.
+
+END OF TERMS AND CONDITIONS

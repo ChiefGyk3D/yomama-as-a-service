@@ -1,0 +1,77 @@
+# SPDX-FileCopyrightText: 2025 YoMama-as-a-Service contributors
+# SPDX-License-Identifier: MPL-2.0
+# YoMama-as-a-Service - Docker Compose Configuration
+
+version: '3.8'
+
+services:
+  # Discord Bot
+  yomama-discord:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: yomama-discord
+    restart: unless-stopped
+    environment:
+      # Load from .env file
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash-lite}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DISCORD_PREFIX=${DISCORD_PREFIX:-$}
+      - DEFAULT_FLAVOR=${DEFAULT_FLAVOR:-tech}
+      - DEFAULT_MEANNESS=${DEFAULT_MEANNESS:-5}
+      - DEFAULT_NERDINESS=${DEFAULT_NERDINESS:-5}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Doppler support (optional)
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN:-}
+      - DOPPLER_PROJECT=${DOPPLER_PROJECT:-yomama-as-a-service}
+      - DOPPLER_CONFIG=${DOPPLER_CONFIG:-dev}
+    command: ["python", "main.py", "--discord"]
+    networks:
+      - yomama-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Matrix Bot
+  yomama-matrix:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: yomama-matrix
+    restart: unless-stopped
+    environment:
+      # Load from .env file
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash-lite}
+      - MATRIX_HOMESERVER=${MATRIX_HOMESERVER}
+      - MATRIX_USER_ID=${MATRIX_USER_ID}
+      - MATRIX_ACCESS_TOKEN=${MATRIX_ACCESS_TOKEN:-}
+      - MATRIX_PASSWORD=${MATRIX_PASSWORD:-}
+      - MATRIX_DEVICE_ID=${MATRIX_DEVICE_ID:-yo_mama_bot}
+      - MATRIX_PREFIX=${MATRIX_PREFIX:-!}
+      - MATRIX_AUTO_JOIN=${MATRIX_AUTO_JOIN:-true}
+      - DEFAULT_FLAVOR=${DEFAULT_FLAVOR:-tech}
+      - DEFAULT_MEANNESS=${DEFAULT_MEANNESS:-5}
+      - DEFAULT_NERDINESS=${DEFAULT_NERDINESS:-5}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Doppler support (optional)
+      - DOPPLER_TOKEN=${DOPPLER_TOKEN:-}
+      - DOPPLER_PROJECT=${DOPPLER_PROJECT:-yomama-as-a-service}
+      - DOPPLER_CONFIG=${DOPPLER_CONFIG:-dev}
+    command: ["python", "main.py", "--matrix"]
+    networks:
+      - yomama-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  yomama-network:
+    driver: bridge

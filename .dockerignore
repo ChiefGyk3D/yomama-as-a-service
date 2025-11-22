@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2025 YoMama-as-a-Service contributors
+# SPDX-License-Identifier: MPL-2.0
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+venv/
+env/
+
+# Environment files
+.env
+.env.local
+
+# Docker volumes
+docker-volumes/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
