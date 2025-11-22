@@ -94,10 +94,18 @@ jobs:
         echo "test-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
         docker run --rm "$IMAGE_TAG" python -c "import yo_mama; print('Import successful')"
 
+    - name: Prepare Trivy image reference
+      id: trivy-ref
+      run: |
+        # Build fully lowercase image reference for Trivy
+        LOWERCASE_TAG=$(echo "${{ steps.test.outputs.test-tag }}" | tr '[:upper:]' '[:lower:]')
+        echo "Image reference for Trivy: $LOWERCASE_TAG"
+        echo "ref=$LOWERCASE_TAG" >> $GITHUB_OUTPUT
+
     - name: Scan image with Trivy
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: ${{ steps.test.outputs.test-tag }}
+        image-ref: ${{ steps.trivy-ref.outputs.ref }}
         format: 'sarif'
         output: 'trivy-results.sarif'
         severity: 'CRITICAL,HIGH'
