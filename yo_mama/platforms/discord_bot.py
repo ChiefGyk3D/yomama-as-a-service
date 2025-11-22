@@ -121,8 +121,8 @@ class DiscordBot:
             
             try:
                 # Validate inputs
-                if meanness is not None and not (1 <= meanness <= 10):
-                    await interaction.followup.send("❌ Meanness must be between 1 and 10")
+                if meanness is not None and not (1 <= meanness <= 11):
+                    await interaction.followup.send("❌ Meanness must be between 1 and 11 (these go to eleven! 🎸)")
                     return
                 
                 if nerdiness is not None and not (1 <= nerdiness <= 10):
