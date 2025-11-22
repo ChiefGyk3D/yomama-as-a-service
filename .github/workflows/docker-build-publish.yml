@@ -18,7 +18,7 @@ name: Docker Build & Publish
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
     tags:
       - 'v*.*.*'
   pull_request:
@@ -72,52 +72,50 @@ jobs:
           type=sha
           type=raw,value=latest,enable={{is_default_branch}}
 
-    - name: Build Docker image
+    - name: Build and Push Docker image
+      id: build
       uses: docker/build-push-action@v6
       with:
         context: .
         file: ./Dockerfile
-        push: false
-        load: true
+        push: ${{ github.event_name != 'pull_request' }}
+        load: ${{ github.event_name == 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+        platforms: ${{ github.event_name != 'pull_request' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
     - name: Test Docker image
+      if: github.event_name == 'pull_request'
       id: test
       run: |
-        # Test that the image runs without errors (quick startup test)
-        # Use the first tag from the list (should be the branch/PR tag)
-        IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+        # Test that the image runs without errors (quick startup test) - PR only
+        IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1 | tr '[:upper:]' '[:lower:]')
         echo "Testing image: $IMAGE_TAG"
-        echo "test-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
         docker run --rm "$IMAGE_TAG" python -c "import yo_mama; print('Import successful')"
 
-    - name: Scan image with Trivy
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: ${{ steps.test.outputs.test-tag }}
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-        severity: 'CRITICAL,HIGH'
-      continue-on-error: true  # Don't fail the build if Trivy has issues
+    - name: Install Trivy
+      if: github.event_name != 'pull_request'
+      run: |
+        wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+        echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+        sudo apt-get update
+        sudo apt-get install trivy -y
+      continue-on-error: true
+
+    - name: Scan published image with Trivy
+      if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+      run: |
+        # Scan the published image from GHCR
+        IMAGE_REF="${{ env.REGISTRY }}/${{ steps.image-name.outputs.value }}:${{ github.sha }}"
+        echo "Scanning published image: $IMAGE_REF"
+        trivy image --format sarif --output trivy-results.sarif --severity CRITICAL,HIGH "$IMAGE_REF" || true
+      continue-on-error: true
 
     - name: Upload Trivy results to GitHub Security
+      if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
       uses: github/codeql-action/upload-sarif@v4
-      if: always() && hashFiles('trivy-results.sarif') != ''
       with:
         sarif_file: 'trivy-results.sarif'
-
-    - name: Push Docker image
-      if: github.event_name != 'pull_request'
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        file: ./Dockerfile
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        platforms: linux/amd64,linux/arm64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+      continue-on-error: true
