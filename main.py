@@ -283,13 +283,28 @@ Examples:
         return 0
     
     # Run as bot if requested
-    if args.discord:
+    if args.discord and args.matrix:
+        # Run both bots concurrently
+        import threading
+        from yo_mama.platforms import run_discord_bot, run_matrix_bot
+        
+        print("\n🤖 Starting Discord and Matrix bots...\n")
+        
+        # Start Discord in a thread
+        discord_thread = threading.Thread(target=run_discord_bot, daemon=False)
+        discord_thread.start()
+        
+        # Start Matrix in main thread (blocks)
+        run_matrix_bot()
+        return 0
+    
+    elif args.discord:
         from yo_mama.platforms import run_discord_bot
         print("\n🤖 Starting Discord bot...\n")
         run_discord_bot()
         return 0
     
-    if args.matrix:
+    elif args.matrix:
         from yo_mama.platforms import run_matrix_bot
         print("\n🤖 Starting Matrix bot...\n")
         run_matrix_bot()
