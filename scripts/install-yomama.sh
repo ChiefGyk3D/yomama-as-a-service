@@ -161,10 +161,30 @@ else
     fi
     
     echo ""
-    echo "Building Docker image..."
-    cd "$PROJECT_DIR"
-    docker build -t yomama-bot:latest .
-    echo -e "${GREEN}✓${NC} Docker image built"
+    echo -e "${BLUE}Docker image source:${NC}"
+    echo "  1) Pull from GitHub Container Registry (production)"
+    echo "  2) Build locally (development)"
+    echo ""
+    read -p "Select [1-2] (default: 1): " -n 1 -r DOCKER_SOURCE
+    echo ""
+    DOCKER_SOURCE=${DOCKER_SOURCE:-1}
+    
+    if [[ ! $DOCKER_SOURCE =~ ^[1-2]$ ]]; then
+        echo -e "${RED}Invalid option${NC}"
+        exit 1
+    fi
+    
+    if [ "$DOCKER_SOURCE" = "1" ]; then
+        echo "Pulling Docker image from GHCR..."
+        docker pull ghcr.io/chiefgyk3d/yomama-as-a-service:latest
+        docker tag ghcr.io/chiefgyk3d/yomama-as-a-service:latest yomama-bot:latest
+        echo -e "${GREEN}✓${NC} Docker image pulled from GHCR"
+    else
+        echo "Building Docker image locally..."
+        cd "$PROJECT_DIR"
+        docker build -t yomama-bot:latest .
+        echo -e "${GREEN}✓${NC} Docker image built locally"
+    fi
     
     # Create systemd service file for Docker
     SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
