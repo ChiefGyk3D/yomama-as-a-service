@@ -72,29 +72,31 @@ jobs:
           type=sha
           type=raw,value=latest,enable={{is_default_branch}}
 
-    - name: Build Docker image
+    - name: Build and Push Docker image
+      id: build
       uses: docker/build-push-action@v6
       with:
         context: .
         file: ./Dockerfile
-        push: false
-        load: true
+        push: ${{ github.event_name != 'pull_request' }}
+        load: ${{ github.event_name == 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+        platforms: ${{ github.event_name != 'pull_request' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
     - name: Test Docker image
+      if: github.event_name == 'pull_request'
       id: test
       run: |
-        # Test that the image runs without errors (quick startup test)
-        # Use the first tag from the list (should be the branch/PR tag)
+        # Test that the image runs without errors (quick startup test) - PR only
         IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1 | tr '[:upper:]' '[:lower:]')
         echo "Testing image: $IMAGE_TAG"
-        echo "test-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
         docker run --rm "$IMAGE_TAG" python -c "import yo_mama; print('Import successful')"
 
     - name: Install Trivy
+      if: github.event_name != 'pull_request'
       run: |
         wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
         echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
@@ -102,45 +104,18 @@ jobs:
         sudo apt-get install trivy -y
       continue-on-error: true
 
-    - name: Scan image with Trivy
+    - name: Scan published image with Trivy
+      if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
       run: |
-        # Use guaranteed lowercase image reference
-        LOWERCASE_TAG=$(echo "${{ steps.test.outputs.test-tag }}" | tr '[:upper:]' '[:lower:]')
-        echo "Scanning image: $LOWERCASE_TAG"
-        trivy image --format sarif --output trivy-results.sarif --severity CRITICAL,HIGH "$LOWERCASE_TAG" || true
-      continue-on-error: true
-
-    - name: Check if Trivy results exist
-      id: trivy-check
-      run: |
-        if [ -f "trivy-results.sarif" ]; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-          echo "Trivy results file found"
-        else
-          echo "exists=false" >> $GITHUB_OUTPUT
-          echo "Trivy results file not found"
-        fi
+        # Scan the published image from GHCR
+        IMAGE_REF="${{ env.REGISTRY }}/${{ steps.image-name.outputs.value }}:${{ github.sha }}"
+        echo "Scanning published image: $IMAGE_REF"
+        trivy image --format sarif --output trivy-results.sarif --severity CRITICAL,HIGH "$IMAGE_REF" || true
       continue-on-error: true
 
     - name: Upload Trivy results to GitHub Security
+      if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
       uses: github/codeql-action/upload-sarif@v4
-      if: |
-        steps.trivy-check.outputs.exists == 'true' && 
-        github.event_name != 'pull_request' && 
-        (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
       with:
         sarif_file: 'trivy-results.sarif'
       continue-on-error: true
-
-    - name: Push Docker image
-      if: github.event_name != 'pull_request'
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        file: ./Dockerfile
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        platforms: linux/amd64,linux/arm64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
