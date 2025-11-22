@@ -1,5 +1,5 @@
 #!/bin/bash
-# SolarStorm Scout - systemd Uninstallation Script
+# YoMama-as-a-Service - systemd Uninstallation Script
 
 set -e
 
@@ -9,19 +9,23 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-echo -e "${CYAN}╔════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║    🌞 SolarStorm Scout Uninstaller 🌞     ║${NC}"
-echo -e "${CYAN}╚════════════════════════════════════════════╝${NC}"
+echo -e "${CYAN}╔═══════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║   🎤 YoMama-as-a-Service Uninstaller 🎤  ║${NC}"
+echo -e "${CYAN}╚═══════════════════════════════════════════╝${NC}"
 echo ""
 
-# Check if service exists
-if ! sudo systemctl list-units --full --all | grep -q "solarstorm-scout.service"; then
-    echo -e "${YELLOW}SolarStorm Scout service not found${NC}"
+# Find all YoMama services
+SERVICES=$(sudo systemctl list-units --full --all | grep "yomama-" | awk '{print $1}' | grep ".service" || true)
+
+if [ -z "$SERVICES" ]; then
+    echo -e "${YELLOW}No YoMama services found${NC}"
     echo "Nothing to uninstall."
     exit 0
 fi
 
-echo "This will remove SolarStorm Scout systemd service and timer."
+echo "Found the following YoMama services:"
+echo "$SERVICES"
+echo ""
 echo -e "${YELLOW}Configuration files (.env) will be preserved.${NC}"
 echo ""
 read -p "Continue with uninstall? (y/N) " -n 1 -r
@@ -32,60 +36,76 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 0
 fi
 
-# Stop and disable timer
-if sudo systemctl is-active --quiet solarstorm-scout.timer; then
-    echo "Stopping timer..."
-    sudo systemctl stop solarstorm-scout.timer
-    echo -e "${GREEN}✓${NC} Timer stopped"
-fi
-
-if sudo systemctl is-enabled --quiet solarstorm-scout.timer 2>/dev/null; then
-    echo "Disabling timer..."
-    sudo systemctl disable solarstorm-scout.timer
-    echo -e "${GREEN}✓${NC} Timer disabled"
-fi
-
-# Remove service files
-if [ -f "/etc/systemd/system/solarstorm-scout.service" ]; then
-    sudo rm /etc/systemd/system/solarstorm-scout.service
-    echo -e "${GREEN}✓${NC} Service file removed"
-fi
-
-if [ -f "/etc/systemd/system/solarstorm-scout.timer" ]; then
-    sudo rm /etc/systemd/system/solarstorm-scout.timer
-    echo -e "${GREEN}✓${NC} Timer file removed"
-fi
+# Stop and disable each service
+for SERVICE in $SERVICES; do
+    echo ""
+    echo "Processing $SERVICE..."
+    
+    if sudo systemctl is-active --quiet "$SERVICE"; then
+        echo "Stopping $SERVICE..."
+        sudo systemctl stop "$SERVICE"
+        echo -e "${GREEN}✓${NC} Stopped"
+    fi
+    
+    if sudo systemctl is-enabled --quiet "$SERVICE" 2>/dev/null; then
+        echo "Disabling $SERVICE..."
+        sudo systemctl disable "$SERVICE"
+        echo -e "${GREEN}✓${NC} Disabled"
+    fi
+    
+    # Remove service file
+    SERVICE_FILE="/etc/systemd/system/$SERVICE"
+    if [ -f "$SERVICE_FILE" ]; then
+        sudo rm "$SERVICE_FILE"
+        echo -e "${GREEN}✓${NC} Service file removed"
+    fi
+done
 
 # Reload systemd
 sudo systemctl daemon-reload
 echo -e "${GREEN}✓${NC} Systemd reloaded"
 
 echo ""
-echo -e "${GREEN}Systemd service uninstalled!${NC}"
+echo -e "${GREEN}Systemd services uninstalled!${NC}"
 echo ""
 
 # Ask about Docker cleanup
 if command -v docker &> /dev/null; then
     echo -e "${BLUE}Docker Cleanup:${NC}"
-    echo "Do you want to remove Docker images?"
-    echo ""
     
     # Check for Docker images
-    LOCAL_IMAGE=$(docker images -q solarstorm-scout:local 2>/dev/null)
-    GHCR_IMAGE=$(docker images -q ghcr.io/chiefgyk3d/solarstorm_scout 2>/dev/null)
+    YOMAMA_IMAGE=$(docker images -q yomama-bot:latest 2>/dev/null)
+    GHCR_IMAGE=$(docker images -q ghcr.io/chiefgyk3d/yomama-as-a-service 2>/dev/null)
     
-    if [ -n "$LOCAL_IMAGE" ] || [ -n "$GHCR_IMAGE" ]; then
-        read -p "Remove SolarStorm Scout Docker images? (y/N) " -n 1 -r
+    # Check for running containers
+    RUNNING_CONTAINERS=$(docker ps -a --filter "name=yomama-" --format "{{.Names}}" 2>/dev/null || true)
+    
+    if [ -n "$RUNNING_CONTAINERS" ]; then
+        echo "Found YoMama containers:"
+        echo "$RUNNING_CONTAINERS"
+        echo ""
+        read -p "Remove YoMama Docker containers? (y/N) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            if [ -n "$LOCAL_IMAGE" ]; then
-                echo "Removing local Docker image..."
-                docker rmi solarstorm-scout:local 2>/dev/null || true
+            for CONTAINER in $RUNNING_CONTAINERS; do
+                docker stop "$CONTAINER" 2>/dev/null || true
+                docker rm "$CONTAINER" 2>/dev/null || true
+                echo -e "${GREEN}✓${NC} Removed container: $CONTAINER"
+            done
+        fi
+    fi
+    
+    if [ -n "$YOMAMA_IMAGE" ] || [ -n "$GHCR_IMAGE" ]; then
+        echo ""
+        read -p "Remove YoMama Docker images? (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if [ -n "$YOMAMA_IMAGE" ]; then
+                docker rmi yomama-bot:latest 2>/dev/null || true
                 echo -e "${GREEN}✓${NC} Local image removed"
             fi
             if [ -n "$GHCR_IMAGE" ]; then
-                echo "Removing GHCR Docker image..."
-                docker rmi ghcr.io/chiefgyk3d/solarstorm_scout:latest 2>/dev/null || true
+                docker rmi ghcr.io/chiefgyk3d/yomama-as-a-service:latest 2>/dev/null || true
                 echo -e "${GREEN}✓${NC} GHCR image removed"
             fi
         else
@@ -94,27 +114,26 @@ if command -v docker &> /dev/null; then
     fi
 fi
 
-# Ask about .last_run file cleanup
-LAST_RUN_FILE="$PROJECT_DIR/logs/.last_run"
-if [ -f "$LAST_RUN_FILE" ]; then
+# Ask about venv cleanup
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+if [ -d "$PROJECT_DIR/venv" ]; then
     echo ""
-    echo -e "${BLUE}Rate Limit Cleanup:${NC}"
-    read -p "Remove rate limit tracking file (.last_run)? (Y/n) " -n 1 -r
+    read -p "Remove Python virtual environment? (y/N) " -n 1 -r
     echo
-    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-        rm "$LAST_RUN_FILE"
-        echo -e "${GREEN}✓${NC} Rate limit tracking file removed"
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        rm -rf "$PROJECT_DIR/venv"
+        echo -e "${GREEN}✓${NC} Virtual environment removed"
     else
-        echo "Rate limit tracking file preserved"
+        echo "Virtual environment preserved"
     fi
 fi
 
 echo ""
-echo "Preserved files:"
-echo "  - Project directory (contains .env and code)"
-echo "  - Logs directory"
-echo "  - Virtual environment (if created)"
+echo -e "${GREEN}╔═══════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║        Uninstall Complete! 👋             ║${NC}"
+echo -e "${GREEN}╚═══════════════════════════════════════════╝${NC}"
 echo ""
-echo "To completely remove SolarStorm Scout:"
-echo "  rm -rf /path/to/solarstorm-scout"
+echo "Your .env file and project files have been preserved."
 echo ""
