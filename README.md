@@ -1,6 +1,6 @@
 # 🎤 YoMama-as-a-Service
 
-![YoMama-as-a-Service Banner](media/banner.png)
+![YoMama-as-a-Service Banner](https://raw.githubusercontent.com/ChiefGyk3D/yomama-as-a-service/main/media/banner.png)
 
 ## *Deploying Insults at Scale* 🚀
 
@@ -475,7 +475,7 @@ If you find YoMama-as-a-Service useful (or hilarious), consider supporting devel
   <table>
     <tr>
       <td align="center"><a href="https://patreon.com/chiefgyk3d?utm_medium=unknown&utm_source=join_link&utm_campaign=creatorshare_creator&utm_content=copyLink" title="Patreon"><img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/patreon.svg" width="32" height="32" alt="Patreon"/></a></td>
-      <td align="center"><a href="https://streamelements.com/chiefgyk3d/tip" title="StreamElements"><img src="media/streamelements.png" width="32" height="32" alt="StreamElements"/></a></td>
+      <td align="center"><a href="https://streamelements.com/chiefgyk3d/tip" title="StreamElements"><img src="https://raw.githubusercontent.com/ChiefGyk3D/yomama-as-a-service/main/media/streamelements.png" width="32" height="32" alt="StreamElements"/></a></td>
     </tr>
     <tr>
       <td align="center">Patreon</td>
