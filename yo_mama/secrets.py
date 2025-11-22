@@ -36,7 +36,8 @@ def load_secrets_from_aws(secret_name: str) -> Dict[str, Any]:
         response = client.get_secret_value(SecretId=secret_name)
         secrets = json.loads(response['SecretString'])
         logger.debug(f"Successfully loaded AWS secret: {secret_name}")
-        return secrets  # lgtm[py/clear-text-logging-sensitive-data]
+        # codeql[py/clear-text-logging-sensitive-data] - Function designed to return secrets
+        return secrets
     except ImportError:
         logger.warning("boto3 not installed. Install with: pip install boto3")
         return {}
@@ -73,7 +74,8 @@ def load_secrets_from_vault(secret_path: str) -> Dict[str, Any]:
         response = client.secrets.kv.v2.read_secret_version(path=secret_path)
         secrets = response['data']['data']
         logger.debug(f"Successfully loaded Vault secret: {secret_path}")
-        return secrets  # lgtm[py/clear-text-logging-sensitive-data]
+        # codeql[py/clear-text-logging-sensitive-data] - Function designed to return secrets
+        return secrets
     except ImportError:
         logger.warning("hvac not installed. Install with: pip install hvac")
         return {}
@@ -133,7 +135,8 @@ def load_secrets_from_doppler(secret_name: Optional[str] = None) -> Dict[str, An
                 if secret_name and not secrets_dict:
                     logger.debug(f"No secrets found with prefix '{secret_name}'")
                 
-                return secrets_dict  # lgtm[py/clear-text-logging-sensitive-data]
+                # codeql[py/clear-text-logging-sensitive-data] - Function designed to return secrets
+                return secrets_dict
             else:
                 logger.warning("No secrets found in Doppler response")
                 return {}

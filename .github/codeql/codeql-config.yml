@@ -9,8 +9,12 @@ query-filters:
       # designed to load and return secrets. The return values contain sensitive
       # data by design and are handled securely in the calling code.
       paths:
+        - "**/yo_mama/secrets.py"
         - "yo_mama/secrets.py"
+        - "/yo_mama/secrets.py"
   - exclude:
       id: py/clear-text-storage-sensitive-data
       paths:
+        - "**/yo_mama/secrets.py"
         - "yo_mama/secrets.py"
+        - "/yo_mama/secrets.py"
