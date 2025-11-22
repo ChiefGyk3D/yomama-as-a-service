@@ -395,6 +395,8 @@ GEMINI_MODEL=gemini-1.5-pro                       # Gemini 1.5 Pro
 
 ## 🤖 Platform Setup
 
+📖 **For detailed setup instructions, see [BOT_SETUP.md](BOT_SETUP.md)**
+
 ### Discord Bot Setup
 
 1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
@@ -407,6 +409,8 @@ GEMINI_MODEL=gemini-1.5-pro                       # Gemini 1.5 Pro
 8. Select bot permissions: Send Messages, Read Messages, Use Slash Commands
 9. Use the generated URL to invite the bot to your server
 10. Run: `python main.py --discord`
+
+**Need more details?** See the complete [Discord setup guide in BOT_SETUP.md](BOT_SETUP.md#-discord-bot-setup)
 
 ### Matrix Bot Setup
 
@@ -422,6 +426,8 @@ GEMINI_MODEL=gemini-1.5-pro                       # Gemini 1.5 Pro
    ```
 4. Run: `python main.py --matrix`
 5. Invite the bot to a room - it will auto-join!
+
+**Need more details?** See the complete [Matrix setup guide in BOT_SETUP.md](BOT_SETUP.md#-matrix-bot-setup)
 
 ## 🔮 Future Enhancements (The Roadmap to Roastopia)
 
