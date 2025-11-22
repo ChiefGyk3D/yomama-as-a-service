@@ -91,7 +91,8 @@ class DiscordBot:
             flavor="Joke flavor",
             meanness="How mean (1-10, default: 5)",
             nerdiness="How nerdy (1-10, default: 5)",
-            target="Custom target name (default: yo mama)"
+            target="Custom target name (default: yo mama)",
+            user="Mention a user to roast (optional)"
         )
         @app_commands.choices(flavor=[
             app_commands.Choice(name="🎭 Classic (Traditional Yo Mama)", value="classic"),
@@ -101,17 +102,20 @@ class DiscordBot:
             app_commands.Choice(name="🌐 General", value="general"),
             app_commands.Choice(name="🎮 Gaming", value="gaming"),
             app_commands.Choice(name="👨‍💻 Programming", value="programming"),
-            app_commands.Choice(name="🌐 Networking", value="networking"),
+            app_commands.Choice(name="📡 Networking", value="networking"),
             app_commands.Choice(name="☁️ Cloud", value="cloud"),
             app_commands.Choice(name="🚀 DevOps", value="devops"),
             app_commands.Choice(name="🗄️ Database", value="database"),
+            app_commands.Choice(name="📻 Amateur Radio (Ham Radio)", value="radio"),
+            # Hidden Easter egg - type "thegame" manually
         ])
         async def joke_slash(
             interaction: discord.Interaction,
             flavor: Optional[str] = None,
             meanness: Optional[int] = None,
             nerdiness: Optional[int] = None,
-            target: Optional[str] = None
+            target: Optional[str] = None,
+            user: Optional[discord.User] = None
         ):
             await interaction.response.defer(thinking=True)
             
@@ -125,27 +129,44 @@ class DiscordBot:
                     await interaction.followup.send("❌ Nerdiness must be between 1 and 10")
                     return
                 
-                # Generate joke
-                joke = self.generator.generate_joke(
-                    flavor=flavor or self.config.default_flavor,
-                    meanness=meanness or self.config.default_meanness,
-                    nerdiness=nerdiness or self.config.default_nerdiness,
-                    target_name=target
-                )
+                # Handle user mention (prepend to message)
+                mention_text = f"{user.mention} " if user else ""
                 
-                # Create embed
-                embed = discord.Embed(
-                    description=f"🎤 {joke}",
-                    color=discord.Color.red()
-                )
-                
-                # Add footer with settings
-                settings = []
-                if flavor:
-                    settings.append(f"Flavor: {flavor}")
-                settings.append(f"Meanness: {meanness or self.config.default_meanness}/10")
-                settings.append(f"Nerdiness: {nerdiness or self.config.default_nerdiness}/10")
-                embed.set_footer(text=" | ".join(settings))
+                # Special handling for "thegame" Easter egg
+                if flavor == "thegame":
+                    joke = self.generator.generate_joke(
+                        flavor="thegame",
+                        meanness=10,  # Always maximum savage
+                        nerdiness=meanness or 5,  # Use meanness as nerdiness for thegame
+                        target_name=user.display_name if user else (target or "you")
+                    )
+                    embed = discord.Embed(
+                        description=f"{mention_text}🎮💀 {joke}",
+                        color=discord.Color.purple()
+                    )
+                    embed.set_footer(text="You just lost The Game. Sorry! 😈")
+                else:
+                    # Generate normal joke
+                    joke = self.generator.generate_joke(
+                        flavor=flavor or self.config.default_flavor,
+                        meanness=meanness or self.config.default_meanness,
+                        nerdiness=nerdiness or self.config.default_nerdiness,
+                        target_name=user.display_name if user else target
+                    )
+                    
+                    # Create embed
+                    embed = discord.Embed(
+                        description=f"{mention_text}🎤 {joke}",
+                        color=discord.Color.red()
+                    )
+                    
+                    # Add footer with settings
+                    settings = []
+                    if flavor:
+                        settings.append(f"Flavor: {flavor}")
+                    settings.append(f"Meanness: {meanness or self.config.default_meanness}/10")
+                    settings.append(f"Nerdiness: {nerdiness or self.config.default_nerdiness}/10")
+                    embed.set_footer(text=" | ".join(settings))
                 
                 await interaction.followup.send(embed=embed)
                 
@@ -189,10 +210,11 @@ class DiscordBot:
             app_commands.Choice(name="🌐 General", value="general"),
             app_commands.Choice(name="🎮 Gaming", value="gaming"),
             app_commands.Choice(name="👨‍💻 Programming", value="programming"),
-            app_commands.Choice(name="🌐 Networking", value="networking"),
+            app_commands.Choice(name="📡 Networking", value="networking"),
             app_commands.Choice(name="☁️ Cloud", value="cloud"),
             app_commands.Choice(name="🚀 DevOps", value="devops"),
             app_commands.Choice(name="🗄️ Database", value="database"),
+            app_commands.Choice(name="📻 Amateur Radio (Ham Radio)", value="radio"),
         ])
         async def batch_slash(
             interaction: discord.Interaction,
@@ -301,17 +323,18 @@ class DiscordBot:
             # Flavors section
             flavors = YoMamaGenerator.list_flavors()
             flavor_list = [
-                "� `classic` - Traditional Yo Mama jokes",
+                "🎭 `classic` - Traditional Yo Mama jokes",
                 "🔒 `cybersecurity` - Hacking & security",
                 "💻 `tech` - General technology",
                 "🐧 `linux` - Linux & Unix",
                 "🌐 `general` - Everyday tech",
                 "🎮 `gaming` - Video games",
                 "👨‍💻 `programming` - Coding",
-                "🌐 `networking` - Networks",
+                "📡 `networking` - Networks",
                 "☁️ `cloud` - Cloud computing",
                 "🚀 `devops` - DevOps & CI/CD",
-                "🗄️ `database` - Databases"
+                "🗄️ `database` - Databases",
+                "📻 `radio` - Amateur radio / Ham radio"
             ]
             embed.add_field(
                 name="🎯 Available Flavors",

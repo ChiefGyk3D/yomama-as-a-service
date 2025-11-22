@@ -242,6 +242,7 @@ print(flavors)
 - `cloud` - Cloud computing, AWS, Azure, containers, Kubernetes
 - `devops` - DevOps, CI/CD, Docker, automation, monitoring
 - `database` - Databases, SQL, NoSQL, queries, optimization
+- `radio` - Amateur radio, ham radio, frequencies, antennas, callsigns, repeaters
 
 ## 🎚️ Meanness Scale (The Severity Matrix)
 

@@ -37,7 +37,9 @@ class YoMamaGenerator:
         'networking',
         'cloud',
         'devops',
-        'database'
+        'database',
+        'radio',          # Amateur radio / ham radio
+        'thegame'         # Hidden Easter egg - You just lost The Game
     ]
     
     def __init__(self, api_key: str, model_name: str = "gemini-2.5-flash-lite"):
@@ -149,7 +151,9 @@ class YoMamaGenerator:
             'networking': 'networks, routers, switches, protocols, TCP/IP, DNS, load balancing, bandwidth',
             'cloud': 'cloud computing, AWS, Azure, GCP, containers, Kubernetes, serverless, microservices',
             'devops': 'DevOps, CI/CD, Docker, Jenkins, automation, infrastructure as code, monitoring',
-            'database': 'databases, SQL, NoSQL, queries, indexes, normalization, database administrators'
+            'database': 'databases, SQL, NoSQL, queries, indexes, normalization, database administrators',
+            'radio': 'amateur radio, ham radio, frequencies, bands (HF/VHF/UHF), antennas, SWR, propagation, callsigns, morse code, repeaters, QSO, QSL cards, ARRL, FCC licenses (Technician/General/Extra), rigs, transceivers, DX, contestin',
+            'thegame': 'The Game - a mind game where thinking about The Game means you lose. Create creative, funny ways to tell them they just lost The Game. Be clever and unexpected. Reference memes, internet culture, or tech concepts if appropriate.'
         }
         
         flavor_context = flavor_contexts.get(flavor, 'general technology')
@@ -222,6 +226,8 @@ Generate ONE joke now, matching all specifications:"""
             'general': "Yo mama so old, her password is literally 'password'.",
             'gaming': "Yo mama so laggy, ping timeout became her nickname.",
             'programming': "Yo mama so buggy, Stack Overflow created a tag just for her.",
+            'radio': "Yo mama so noisy, she causes interference on all bands at once - 73!",
+            'thegame': "Congratulations! You just lost The Game. And so did everyone reading this. Sorry not sorry. 🎮💀",
         }
         return fallbacks.get(flavor, "Yo mama so outdated, even legacy systems moved on.")
     
