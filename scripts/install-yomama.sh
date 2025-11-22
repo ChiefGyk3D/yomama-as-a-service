@@ -176,6 +176,9 @@ else
     
     if [ "$DOCKER_SOURCE" = "1" ]; then
         echo "Pulling Docker image from GHCR..."
+        # Remove old images to force fresh pull
+        docker rmi yomama-bot:latest 2>/dev/null || true
+        docker rmi ghcr.io/chiefgyk3d/yomama-as-a-service:latest 2>/dev/null || true
         docker pull ghcr.io/chiefgyk3d/yomama-as-a-service:latest
         docker tag ghcr.io/chiefgyk3d/yomama-as-a-service:latest yomama-bot:latest
         echo -e "${GREEN}✓${NC} Docker image pulled from GHCR"
