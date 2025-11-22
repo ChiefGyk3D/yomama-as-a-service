@@ -89,7 +89,7 @@ class DiscordBot:
         @self.bot.tree.command(name="joke", description="Generate a Yo Mama joke")
         @app_commands.describe(
             flavor="Joke flavor",
-            meanness="How mean (1-10, default: 5)",
+            meanness="How mean (1-11, default: 5) - These go to eleven! 🎸",
             nerdiness="How nerdy (1-10, default: 5)",
             target="Custom target name (default: yo mama)",
             user="Mention a user to roast (optional)"
@@ -199,7 +199,7 @@ class DiscordBot:
         @app_commands.describe(
             count="Number of jokes (1-10)",
             flavor="Joke flavor",
-            meanness="How mean (1-10)",
+            meanness="How mean (1-11) - These go to eleven! 🎸",
             nerdiness="How nerdy (1-10)"
         )
         @app_commands.choices(flavor=[
