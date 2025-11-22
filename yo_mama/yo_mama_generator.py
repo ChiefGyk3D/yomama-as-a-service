@@ -169,7 +169,7 @@ class YoMamaGenerator:
             7: 'harsh and pointed, definitely stinging',
             8: 'brutal and savage, no holding back',
             9: 'devastatingly mean, almost cruel',
-            10: 'absolutely merciless and nuclear-level savage'
+            10: 'ABSOLUTELY RUTHLESS AND DEVASTATING - go for the jugular with no mercy whatsoever. Use the most cutting, brutal, savage insults possible. Make it genuinely offensive and shocking. Hold nothing back. This should be emotionally destructive and leave lasting damage. Nuclear-level roast that would make a comedian wince.'
         }
         
         # Define nerdiness guidance
