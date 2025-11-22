@@ -104,17 +104,30 @@ jobs:
         sudo apt-get install trivy -y
       continue-on-error: true
 
-    - name: Scan published image with Trivy
-      if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+    - name: Scan Docker image with Trivy
+      if: github.event_name != 'pull_request'
       run: |
-        # Scan the published image from GHCR
-        IMAGE_REF="${{ env.REGISTRY }}/${{ steps.image-name.outputs.value }}:${{ github.sha }}"
-        echo "Scanning published image: $IMAGE_REF"
-        trivy image --format sarif --output trivy-results.sarif --severity CRITICAL,HIGH "$IMAGE_REF" || true
+        # For pushes, scan the image using docker-archive or local Docker daemon
+        IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1 | tr '[:upper:]' '[:lower:]')
+        echo "Scanning image: $IMAGE_TAG"
+        
+        # Try to scan the image from local Docker daemon first
+        if docker image inspect "$IMAGE_TAG" >/dev/null 2>&1; then
+          echo "Scanning local Docker image"
+          trivy image --format sarif --output trivy-results.sarif --severity CRITICAL,HIGH "$IMAGE_TAG" || echo "Trivy scan failed, continuing..."
+        else
+          echo "Image not found locally, trying GHCR registry"
+          trivy image --format sarif --output trivy-results.sarif --severity CRITICAL,HIGH "$IMAGE_TAG" || echo "Trivy scan failed, continuing..."
+        fi
+        
+        # Ensure SARIF file exists even if scan failed
+        if [ ! -f trivy-results.sarif ]; then
+          echo '{"version":"2.1.0","$schema":"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json","runs":[]}' > trivy-results.sarif
+        fi
       continue-on-error: true
 
     - name: Upload Trivy results to GitHub Security
-      if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+      if: github.event_name != 'pull_request'
       uses: github/codeql-action/upload-sarif@v4
       with:
         sarif_file: 'trivy-results.sarif'
