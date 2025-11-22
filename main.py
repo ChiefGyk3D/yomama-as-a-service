@@ -116,11 +116,11 @@ def interactive_mode(generator: YoMamaGenerator, config):
                 # Change meanness
                 try:
                     new_meanness = int(user_input[2:].strip())
-                    if 1 <= new_meanness <= 10:
+                    if 1 <= new_meanness <= 11:
                         current_meanness = new_meanness
-                        print(f"✓ Meanness set to: {current_meanness}/10")
+                        print(f"✓ Meanness set to: {current_meanness}/11")
                     else:
-                        print("❌ Meanness must be between 1 and 10")
+                        print("❌ Meanness must be between 1 and 11 (these go to eleven! 🎸)")
                 except ValueError:
                     print("❌ Invalid number")
             

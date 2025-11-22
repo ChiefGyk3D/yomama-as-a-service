@@ -146,8 +146,8 @@ class MatrixBot:
         nerdiness = int(args[2]) if len(args) > 2 else self.config.default_nerdiness
         
         # Validate
-        if meanness < 1 or meanness > 10:
-            await self._send_message(room, "❌ Meanness must be between 1 and 10")
+        if meanness < 1 or meanness > 11:
+            await self._send_message(room, "❌ Meanness must be between 1 and 11 (these go to eleven! 🎸)")
             return
         
         if nerdiness < 1 or nerdiness > 10:

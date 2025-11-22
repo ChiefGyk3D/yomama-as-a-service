@@ -15,7 +15,7 @@ An AI-powered Yo Mama joke generator that crafts customized roasts using Google 
 ## ✨ Features (aka The Roast Stack)
 
 - 🎯 **Multiple Flavors**: Classic (traditional Yo Mama jokes), cybersecurity, tech, Linux, gaming, programming, networking, cloud, DevOps, database, and more—because microservices should apply to insults too
-- 🔥 **Adjustable Meanness**: Scale from 1 (gentle) to 10 (absolutely savage)—like severity levels, but for emotional damage
+- 🔥 **Adjustable Meanness**: Scale from 1 (gentle) to 11 (absolutely savage)—like severity levels, but for emotional damage. Why 11? Because it's one louder. 🎸
 - 🤓 **Nerdiness Control**: Scale from 1 (accessible to everyone) to 10 (extremely technical)—choose your own adventure in technical debt
 - � **Docker Support**: Multi-stage builds with automatic OS updates—containerized roasting for the cloud-native era
 - �🔒 **Enterprise-Grade Secrets Management**: Doppler, AWS Secrets Manager, HashiCorp Vault, or .env—because even your API keys deserve better than yo mama's password: "password123"
@@ -167,6 +167,9 @@ python main.py -b 5 -f linux -m 6 -n 8
 # Use a custom target name
 python main.py -f gaming -t "your code" -m 7
 
+# Turn it up to 11 (Spinal Tap mode) 🎸
+python main.py -f cybersecurity -m 11 -n 10
+
 # Random joke with random parameters
 python main.py -r
 ```
@@ -180,7 +183,7 @@ python main.py -i
 Interactive commands:
 - `[Enter]` - Generate joke with current settings
 - `f [flavor]` - Change flavor (e.g., `f cybersecurity`)
-- `m [1-10]` - Change meanness level (e.g., `m 8`)
+- `m [1-11]` - Change meanness level (e.g., `m 8`, or `m 11` for Spinal Tap mode 🎸)
 - `n [1-10]` - Change nerdiness level (e.g., `n 9`)
 - `t [name]` - Change target name (e.g., `t your server`)
 - `b [count]` - Generate batch of jokes (e.g., `b 5`)
@@ -251,6 +254,7 @@ print(flavors)
 - **5-6**: Moderate roasting, noticeable but not harsh—ERROR level, but still recoverable
 - **7-8**: Harsh and brutal, no holding back—CRITICAL alerts going off
 - **9-10**: Absolutely merciless, nuclear-level savage—rm -rf / with sudo privileges
+- **11**: 🎸 **THESE GO TO ELEVEN** - Why don't you just make 10 more savage? But... this one goes to 11. One louder than maximum devastation. Thermonuclear roasting that would make Spinal Tap proud.
 
 ## 🤓 Nerdiness Scale (The Stack Depth)
 
@@ -281,7 +285,7 @@ The bot uses a comprehensive priority system for secrets:
 | `GEMINI_API_KEY` | Google Gemini API key | - | ✅ Yes |
 | `GEMINI_MODEL` | Gemini model name | `gemini-2.5-flash-lite` | No |
 | `DEFAULT_FLAVOR` | Default joke flavor | `tech` | No |
-| `DEFAULT_MEANNESS` | Default meanness (1-10) | `5` | No |
+| `DEFAULT_MEANNESS` | Default meanness (1-11, these go to 11 🎸) | `5` | No |
 | `DEFAULT_NERDINESS` | Default nerdiness (1-10) | `5` | No |
 | `LOG_LEVEL` | Logging level | `INFO` | No |
 | `DOPPLER_TOKEN` | Doppler service token | - | No |
