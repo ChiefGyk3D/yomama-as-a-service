@@ -178,11 +178,14 @@ class MatrixBot:
         """Handle !thegame command (Easter egg)."""
         # Extract user mention if provided (Matrix format: @user:server.com)
         target_name = None
+        mention_text = ""
+        
         if args and len(args) > 0:
             # Check if it's a Matrix user mention
             if args[0].startswith('@'):
-                # Extract just the username part before the colon
-                target_name = args[0].split(':')[0][1:]  # Remove @ and server part
+                # Use "you" to directly address the mentioned user
+                target_name = "you"
+                mention_text = f"{args[0]} "
         
         joke = self.generator.generate_joke(
             flavor="thegame",
@@ -191,8 +194,6 @@ class MatrixBot:
             target_name=target_name
         )
         
-        # Mention the user if provided
-        mention_text = f"{args[0]} " if args and len(args) > 0 and args[0].startswith('@') else ""
         await self._send_message(room, f"{mention_text}🎮💀 {joke}\n\n_You just lost The Game. Sorry! 😈_")
     
     async def _cmd_batch(self, room: MatrixRoom, args: list):
