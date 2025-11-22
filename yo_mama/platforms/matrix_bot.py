@@ -327,8 +327,8 @@ class MatrixBot:
             else:
                 logger.info(f"Using existing access token for {self.user_id}")
             
-            # Sync and run forever
-            await self.client.sync_forever(timeout=30000, full_state=True)
+            # Sync and run forever (only process new messages)
+            await self.client.sync_forever(timeout=30000, full_state=False)
         except Exception as e:
             logger.error(f"Bot error: {e}")
             raise
