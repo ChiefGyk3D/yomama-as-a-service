@@ -14,18 +14,32 @@ echo -e "${CYAN}║   🎤 YoMama-as-a-Service Uninstaller 🎤  ║${NC}"
 echo -e "${CYAN}╚═══════════════════════════════════════════╝${NC}"
 echo ""
 
-# Find all YoMama services
-SERVICES=$(sudo systemctl list-units --full --all | grep "yomama-" | awk '{print $1}' | grep ".service" || true)
+# Find all YoMama service files in /etc/systemd/system/
+SERVICES=$(sudo find /etc/systemd/system/ -name "yomama-*.service" -type f 2>/dev/null | xargs -n1 basename 2>/dev/null || true)
 
-if [ -z "$SERVICES" ]; then
-    echo -e "${YELLOW}No YoMama services found${NC}"
+# Check for Docker containers
+DOCKER_CONTAINERS=$(docker ps -a --filter "name=yomama" --format "{{.Names}}" 2>/dev/null || true)
+
+# Check if anything is installed
+if [ -z "$SERVICES" ] && [ -z "$DOCKER_CONTAINERS" ]; then
+    echo -e "${YELLOW}No YoMama services or Docker containers found${NC}"
     echo "Nothing to uninstall."
     exit 0
 fi
 
-echo "Found the following YoMama services:"
-echo "$SERVICES"
-echo ""
+# Show what was found
+if [ -n "$SERVICES" ]; then
+    echo "Found the following YoMama systemd services:"
+    echo "$SERVICES"
+    echo ""
+fi
+
+if [ -n "$DOCKER_CONTAINERS" ]; then
+    echo "Found the following YoMama Docker containers:"
+    echo "$DOCKER_CONTAINERS"
+    echo ""
+fi
+
 echo -e "${YELLOW}Configuration files (.env) will be preserved.${NC}"
 echo ""
 read -p "Continue with uninstall? (y/N) " -n 1 -r
@@ -36,49 +50,53 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 0
 fi
 
-# Stop and disable each service
-for SERVICE in $SERVICES; do
+# Stop and disable systemd services
+if [ -n "$SERVICES" ]; then
     echo ""
-    echo "Processing $SERVICE..."
+    echo "Removing systemd services..."
     
-    if sudo systemctl is-active --quiet "$SERVICE"; then
-        echo "Stopping $SERVICE..."
-        sudo systemctl stop "$SERVICE"
-        echo -e "${GREEN}✓${NC} Stopped"
-    fi
-    
-    if sudo systemctl is-enabled --quiet "$SERVICE" 2>/dev/null; then
-        echo "Disabling $SERVICE..."
-        sudo systemctl disable "$SERVICE"
-        echo -e "${GREEN}✓${NC} Disabled"
-    fi
-    
-    # Remove service file
-    SERVICE_FILE="/etc/systemd/system/$SERVICE"
-    if [ -f "$SERVICE_FILE" ]; then
-        sudo rm "$SERVICE_FILE"
-        echo -e "${GREEN}✓${NC} Service file removed"
-    fi
-done
+    for SERVICE in $SERVICES; do
+        echo ""
+        echo "Processing $SERVICE..."
+        
+        if sudo systemctl is-active --quiet "$SERVICE"; then
+            echo "Stopping $SERVICE..."
+            sudo systemctl stop "$SERVICE"
+            echo -e "${GREEN}✓${NC} Stopped"
+        fi
+        
+        if sudo systemctl is-enabled --quiet "$SERVICE" 2>/dev/null; then
+            echo "Disabling $SERVICE..."
+            sudo systemctl disable "$SERVICE"
+            echo -e "${GREEN}✓${NC} Disabled"
+        fi
+        
+        # Remove service file
+        SERVICE_FILE="/etc/systemd/system/$SERVICE"
+        if [ -f "$SERVICE_FILE" ]; then
+            sudo rm "$SERVICE_FILE"
+            echo -e "${GREEN}✓${NC} Service file removed"
+        fi
+    done
 
-# Reload systemd
-sudo systemctl daemon-reload
-echo -e "${GREEN}✓${NC} Systemd reloaded"
+    # Reload systemd
+    sudo systemctl daemon-reload
+    echo -e "${GREEN}✓${NC} Systemd reloaded"
+    echo ""
+    echo -e "${GREEN}Systemd services uninstalled!${NC}"
+fi
 
-echo ""
-echo -e "${GREEN}Systemd services uninstalled!${NC}"
-echo ""
-
-# Ask about Docker cleanup
+# Docker cleanup
 if command -v docker &> /dev/null; then
+    echo ""
     echo -e "${BLUE}Docker Cleanup:${NC}"
     
     # Check for Docker images
     YOMAMA_IMAGE=$(docker images -q yomama-bot:latest 2>/dev/null)
     GHCR_IMAGE=$(docker images -q ghcr.io/chiefgyk3d/yomama-as-a-service 2>/dev/null)
     
-    # Check for running containers
-    RUNNING_CONTAINERS=$(docker ps -a --filter "name=yomama-" --format "{{.Names}}" 2>/dev/null || true)
+    # Check for ALL containers with "yomama" in the name (not just "yomama-")
+    RUNNING_CONTAINERS=$(docker ps -a --filter "name=yomama" --format "{{.Names}}" 2>/dev/null || true)
     
     if [ -n "$RUNNING_CONTAINERS" ]; then
         echo "Found YoMama containers:"
