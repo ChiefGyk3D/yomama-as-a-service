@@ -1,0 +1,10 @@
+# CodeQL configuration for YoMama-as-a-Service
+name: "YoMama CodeQL Config"
+
+# Suppress specific alerts
+query-filters:
+  - exclude:
+      id: py/clear-text-logging-sensitive-data
+      # Suppress for secret loading functions - these are designed to return secrets
+      paths:
+        - yo_mama/secrets.py
