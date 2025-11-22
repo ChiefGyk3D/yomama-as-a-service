@@ -216,7 +216,12 @@ def main():
         all_passed = False
     
     # Test joke generation (optional, requires API key)
-    if os.getenv('GEMINI_API_KEY') or (os.path.isfile('.env') and 'GEMINI_API_KEY' in open('.env').read()):
+    has_api_key = os.getenv('GEMINI_API_KEY')
+    if not has_api_key and os.path.isfile('.env'):
+        with open('.env', 'r') as f:
+            has_api_key = 'GEMINI_API_KEY' in f.read()
+    
+    if has_api_key:
         response = input("\n🤔 Test joke generation? (y/n, default=n): ").strip().lower()
         if response == 'y':
             if not test_joke_generation():
