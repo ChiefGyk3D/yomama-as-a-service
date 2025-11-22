@@ -10,7 +10,7 @@ meanness and nerdiness levels.
 import logging
 import random
 from typing import Literal, Optional
-import google.generativeai as genai
+from google import genai
 
 logger = logging.getLogger(__name__)
 
