@@ -12,10 +12,10 @@ def test_imports():
     """Test that all required modules can be imported."""
     print("🔍 Testing imports...")
     try:
-        import google.generativeai as genai
-        print("   ✓ google-generativeai")
+        from google import genai
+        print("   ✓ google-genai")
     except ImportError as e:
-        print(f"   ❌ google-generativeai: {e}")
+        print(f"   ❌ google-genai: {e}")
         return False
     
     try:

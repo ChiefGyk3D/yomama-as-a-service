@@ -46,19 +46,10 @@ jobs:
         python -m pip install --upgrade "pip>=25.3"
         pip install -r requirements.txt
 
-    - name: Run setup validation
+    - name: Run unit tests
       run: |
-        python test_setup.py
+        python -m pytest tests/ -v --tb=short
       continue-on-error: false
-
-    - name: Test imports
-      run: |
-        python -c "from yo_mama import YoMamaGenerator, get_config; print('✓ Imports successful')"
-
-    - name: Run demo (dry run)
-      run: |
-        python -c "from yo_mama.config import get_config; from yo_mama.yo_mama_generator import YoMamaGenerator; print('✓ Generator can be initialized')"
-      continue-on-error: true
 
   lint:
     name: Lint and Security Check
@@ -81,7 +72,7 @@ jobs:
 
     - name: Lint with Ruff
       run: |
-        ruff check yo_mama/ main.py demo.py test_setup.py --output-format=github
+        ruff check yo_mama/ tests/ main.py demo.py --output-format=github
       continue-on-error: true
 
     - name: Security check with Bandit

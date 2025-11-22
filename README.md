@@ -298,13 +298,18 @@ The bot uses a comprehensive priority system for secrets:
 Yo_Mama/
 ├── main.py                        # Main entry point (CLI/Discord/Matrix)
 ├── demo.py                        # API usage demonstrations
-├── test_setup.py                  # Configuration test script
+├── test_setup.py                  # Legacy configuration test script
 ├── requirements.txt               # Python dependencies
 ├── .env.example                   # Example configuration
 ├── setup.sh                       # Automated setup
 ├── run.sh                         # Quick run script
 ├── README.md                      # This file
 ├── QUICKSTART.md                  # Quick reference
+├── tests/                         # Test suite
+│   ├── __init__.py
+│   ├── test_imports.py            # Dependency import tests
+│   ├── test_config.py             # Configuration tests
+│   └── test_generator.py          # Generator tests
 └── yo_mama/                       # Main package
     ├── __init__.py
     ├── config.py                  # Configuration management
@@ -340,9 +345,22 @@ Here are some examples of what the bot deploys:
 
 ### Running Tests
 
+The project includes a comprehensive test suite to ensure everything works correctly:
+
 ```bash
-# Test configuration
-python -c "from config import get_config; c = get_config(); print(c.validate())"
+# Run all tests
+pytest tests/ -v
+
+# Run specific test modules
+pytest tests/test_imports.py -v    # Test dependencies
+pytest tests/test_config.py -v     # Test configuration
+pytest tests/test_generator.py -v  # Test generator
+
+# Run tests with coverage
+pytest tests/ --cov=yo_mama --cov-report=html
+
+# Legacy test script (still available)
+python test_setup.py
 
 # Test joke generation
 python main.py -f tech -m 5 -n 5
