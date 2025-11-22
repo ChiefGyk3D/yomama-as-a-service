@@ -89,7 +89,7 @@ jobs:
       run: |
         # Test that the image runs without errors (quick startup test)
         # Use the first tag from the list (should be the branch/PR tag)
-        IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+        IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1 | tr '[:upper:]' '[:lower:]')
         echo "Testing image: $IMAGE_TAG"
         echo "test-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
         docker run --rm "$IMAGE_TAG" python -c "import yo_mama; print('Import successful')"
