@@ -182,7 +182,7 @@ class MatrixBot:
         """Handle !thegame command (Easter egg)."""
         joke = self.generator.generate_joke(
             flavor="thegame",
-            meanness=10,  # Always maximum savage
+            meanness=11,  # THESE GO TO ELEVEN! 🎸
             nerdiness=5,
             target_name=None
         )

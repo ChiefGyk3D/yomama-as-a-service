@@ -136,7 +136,7 @@ class DiscordBot:
                 if flavor == "thegame":
                     joke = self.generator.generate_joke(
                         flavor="thegame",
-                        meanness=10,  # Always maximum savage
+                        meanness=11,  # THESE GO TO ELEVEN! 🎸
                         nerdiness=meanness or 5,  # Use meanness as nerdiness for thegame
                         target_name=user.display_name if user else (target or "you")
                     )
@@ -410,7 +410,7 @@ class DiscordBot:
                 try:
                     joke = self.generator.generate_joke(
                         flavor="thegame",
-                        meanness=10,  # Always maximum savage
+                        meanness=11,  # THESE GO TO ELEVEN! 🎸
                         nerdiness=5,
                         target_name=None
                     )
