@@ -103,11 +103,24 @@ jobs:
         severity: 'CRITICAL,HIGH'
       continue-on-error: true  # Don't fail the build if Trivy has issues
 
+    - name: Check if Trivy results exist
+      id: trivy-check
+      run: |
+        if [ -f "trivy-results.sarif" ]; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "Trivy results file found"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "Trivy results file not found"
+        fi
+      continue-on-error: true
+
     - name: Upload Trivy results to GitHub Security
       uses: github/codeql-action/upload-sarif@v4
-      if: always() && hashFiles('trivy-results.sarif') != ''
+      if: steps.trivy-check.outputs.exists == 'true' && github.event_name != 'pull_request'
       with:
         sarif_file: 'trivy-results.sarif'
+      continue-on-error: true
 
     - name: Push Docker image
       if: github.event_name != 'pull_request'
