@@ -282,8 +282,13 @@ The bot uses a comprehensive priority system for secrets:
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `GEMINI_API_KEY` | Google Gemini API key | - | ✅ Yes |
+| `GEMINI_API_KEY` | Google Gemini API key | - | ✅ Yes (unless using Ollama) |
 | `GEMINI_MODEL` | Gemini model name | `gemini-2.5-flash-lite` | No |
+| `LLM_PROVIDER` | AI backend: `gemini` or `ollama` | `gemini` | No |
+| `LLM_OLLAMA_HOST` | Ollama server host (when provider is ollama) | `http://localhost` | No |
+| `LLM_OLLAMA_PORT` | Ollama server port | `11434` | No |
+| `LLM_OLLAMA_MODEL` | Ollama model name | `gemma3:4b` | No |
+| `LLM_FALLBACK_PROVIDER` | Optional failover backend (e.g. `gemini` behind an Ollama primary) | - | No |
 | `DEFAULT_FLAVOR` | Default joke flavor | `tech` | No |
 | `DEFAULT_MEANNESS` | Default meanness (1-11, these go to 11 🎸) | `5` | No |
 | `DEFAULT_NERDINESS` | Default nerdiness (1-10) | `5` | No |
@@ -397,6 +402,26 @@ GEMINI_MODEL=gemini-2.5-pro                       # Gemini 2.5 Pro (advanced thi
 GEMINI_MODEL=gemini-2.0-flash                     # Gemini 2.0 Flash
 GEMINI_MODEL=gemini-1.5-pro                       # Gemini 1.5 Pro
 ```
+
+### Using a Local Ollama Server Instead
+
+The bot shares its LLM layer (via [hypeman-social](https://github.com/ChiefGyk3D/hypeman))
+with the announcement daemons, so it can run entirely on your own hardware —
+no API key, no cloud, your jokes never leave the network:
+
+```bash
+LLM_PROVIDER=ollama
+LLM_OLLAMA_HOST=http://your-ollama-box   # default: http://localhost
+LLM_OLLAMA_PORT=11434
+LLM_OLLAMA_MODEL=gemma3:4b               # or any model Ollama can load
+
+# Optional: fail over to Gemini when the local box is down
+LLM_FALLBACK_PROVIDER=gemini
+GEMINI_API_KEY=your_key_here
+```
+
+If the Ollama server goes offline, the bot serves canned fallback jokes and
+reconnects automatically when it returns.
 
 ## 🤖 Platform Setup
 

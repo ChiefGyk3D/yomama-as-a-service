@@ -2,7 +2,11 @@
 # Python 3.10+
 
 # Core dependencies
-google-genai==1.61.0
+# Shared LLM layer (Gemini + Ollama with guardrails and failover) from the
+# hypeman-social library used across ChiefGyk3D's daemons. The extras pull
+# google-genai and ollama.
+# TODO: switch to `hypeman-social[gemini,ollama]>=0.1.0` once it's on PyPI.
+hypeman-social[gemini,ollama] @ git+https://github.com/ChiefGyk3D/hypeman.git@claude/hypeman-library-extraction-46rmfh
 python-dotenv==1.2.1
 doppler-sdk==1.3.0
 
