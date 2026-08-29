@@ -146,11 +146,20 @@ docker-compose up -d
 All environment variables from `.env` are passed to containers. Key variables:
 
 ### Required
-- `GEMINI_API_KEY` - Google Gemini API key
+- `GEMINI_API_KEY` - Google Gemini API key (required when Gemini is in the provider chain; not needed for Ollama-only setups)
 - `DISCORD_BOT_TOKEN` - Discord bot token (for Discord bot)
 - `MATRIX_HOMESERVER` - Matrix homeserver URL (for Matrix bot)
 - `MATRIX_USER_ID` - Matrix user ID (for Matrix bot)
 - `MATRIX_ACCESS_TOKEN` or `MATRIX_PASSWORD` - Matrix auth
+
+### LLM Provider Selection
+- `LLM_PROVIDER` - Primary provider: `gemini` (cloud, default) or `ollama` (local)
+- `LLM_FALLBACK_PROVIDER` - Opt-in failover chain, e.g. `gemini` (default: none)
+- `LLM_OLLAMA_HOST` - Ollama server URL, e.g. `http://192.168.1.100` (default: http://localhost)
+- `LLM_OLLAMA_PORT` - Ollama port (default: 11434)
+- `LLM_OLLAMA_MODEL` - Model on the Ollama server (default: gemma3:4b)
+- `LLM_TEMPERATURE` - Sampling temperature (default: 0.9)
+- `LLM_MAX_TOKENS` - Response token cap (default: 150)
 
 ### Optional
 - `GEMINI_MODEL` - Model to use (default: gemini-2.5-flash-lite)

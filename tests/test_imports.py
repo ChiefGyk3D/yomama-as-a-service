@@ -20,6 +20,22 @@ class TestImports(unittest.TestCase):
         except ImportError as e:
             self.fail(f"Failed to import google.genai: {e}")
     
+    def test_hypeman_llm(self):
+        """Test hypeman LLM layer import."""
+        try:
+            from hypeman_social.llm import LLMManager
+            self.assertTrue(True)
+        except ImportError as e:
+            self.fail(f"Failed to import hypeman_social.llm: {e}")
+
+    def test_ollama(self):
+        """Test ollama client import."""
+        try:
+            import ollama
+            self.assertTrue(True)
+        except ImportError as e:
+            self.fail(f"Failed to import ollama: {e}")
+
     def test_dopplersdk(self):
         """Test dopplersdk import."""
         try:

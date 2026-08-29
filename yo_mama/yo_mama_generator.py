@@ -1,16 +1,32 @@
 # SPDX-FileCopyrightText: 2025 YoMama-as-a-Service contributors
 # SPDX-License-Identifier: MPL-2.0
 """
-Yo Mama Joke Generator using Google Gemini AI.
+Yo Mama Joke Generator.
+
+Generation is provider-agnostic via hypeman's LLMManager, the same layer
+Stream Daemon and Boon Tube Daemon use: run Ollama on your own hardware,
+Google Gemini in the cloud, or both — a primary with an opt-in fallback
+that covers outages and keeps retrying the primary until it comes back.
+
+Provider selection is configuration, not code:
+
+    LLM_PROVIDER=ollama             # or gemini (default: gemini)
+    LLM_FALLBACK_PROVIDER=gemini    # opt-in failover chain
+    LLM_OLLAMA_HOST=http://192.168.1.100
+    LLM_OLLAMA_MODEL=gemma3:4b
+    LLM_GEMINI_MODEL=gemini-2.5-flash-lite
+    GEMINI_API_KEY=...
 
 Supports multiple flavors (cybersecurity, tech, general) and configurable
 meanness and nerdiness levels.
 """
 
 import logging
+import os
 import random
-from typing import Literal, Optional
-from google import genai
+from typing import Optional
+
+from hypeman_social.llm import GENERIC_PROFILE, LLMManager
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +34,13 @@ logger = logging.getLogger(__name__)
 class YoMamaGenerator:
     """
     Generate Yo Mama jokes with customizable flavors and intensity levels.
-    
+
     Supports:
     - Flavors: cybersecurity, tech, linux, general, gaming, programming
     - Meanness: 1-10 scale (1=gentle, 10=brutal)
     - Nerdiness: 1-10 scale (1=accessible, 10=extremely technical)
     """
-    
+
     # Available joke flavors
     FLAVORS = [
         'classic',        # Traditional Yo Mama jokes (so fat, so ugly, etc.)
@@ -41,23 +57,46 @@ class YoMamaGenerator:
         'radio',          # Amateur radio / ham radio
         'thegame'         # Hidden Easter egg - You just lost The Game
     ]
-    
-    def __init__(self, api_key: str, model_name: str = "gemini-2.5-flash-lite"):
+
+    def __init__(self, api_key: Optional[str] = None, model_name: Optional[str] = None):
         """
         Initialize the Yo Mama joke generator.
-        
+
+        The LLM provider (Ollama, Gemini, and the fallback chain) is chosen by
+        LLM_* environment variables — see the module docstring. The arguments
+        exist for backward compatibility with the Gemini-only versions.
+
         Args:
-            api_key: Google Gemini API key
-            model_name: Gemini model to use (default: gemini-2.5-flash-lite)
+            api_key: Google Gemini API key (optional; GEMINI_API_KEY env or a
+                     secrets manager is the usual source)
+            model_name: Gemini model to use (optional; sets LLM_GEMINI_MODEL)
         """
-        self.api_key = api_key
-        self.model_name = model_name
-        
-        # Create Gemini client
-        self.client = genai.Client(api_key=api_key)
-        
-        logger.info(f"Initialized YoMamaGenerator with model: {model_name}")
-    
+        # A joke bot with no LLM is just a bot, so generation defaults on.
+        # hypeman defaults LLM_ENABLE to false; only an explicit
+        # LLM_ENABLE=false in the environment turns it off here.
+        os.environ.setdefault('LLM_ENABLE', 'true')
+
+        # hypeman's 0.3 default is tuned for factual announcement posts;
+        # jokes need the dial turned toward creative.
+        os.environ.setdefault('LLM_TEMPERATURE', '0.9')
+
+        # Route the legacy constructor arguments to where hypeman looks for
+        # them. Gemini-specific keys only, so an Ollama primary is unaffected.
+        if api_key:
+            os.environ.setdefault('GEMINI_API_KEY', api_key)
+        if model_name:
+            os.environ.setdefault('LLM_GEMINI_MODEL', model_name)
+
+        self.llm = LLMManager(profile=GENERIC_PROFILE)
+        self.llm.authenticate()
+
+        active = self.llm.active
+        self.model_name = getattr(active, 'model', None) or model_name or 'unavailable'
+        logger.info(
+            f"Initialized YoMamaGenerator "
+            f"(provider: {self.llm.provider or 'none'}, model: {self.model_name})"
+        )
+
     def generate_joke(
         self,
         flavor: Optional[str] = None,
@@ -67,7 +106,7 @@ class YoMamaGenerator:
     ) -> str:
         """
         Generate a Yo Mama joke with specified parameters.
-        
+
         Args:
             flavor: Joke flavor/theme (cybersecurity, tech, linux, etc.)
                    If None, a random flavor is selected
@@ -80,7 +119,7 @@ class YoMamaGenerator:
                       5 = requires basic tech knowledge
                       10 = extremely technical, insider references
             target_name: Optional custom name instead of "yo mama"
-        
+
         Returns:
             Generated joke as a string
         """
@@ -88,48 +127,57 @@ class YoMamaGenerator:
         if flavor and flavor.lower() not in self.FLAVORS:
             logger.warning(f"Unknown flavor '{flavor}', using random")
             flavor = None
-        
+
         if flavor is None:
             flavor = random.choice(self.FLAVORS)
         else:
             flavor = flavor.lower()
-        
+
         meanness = max(1, min(11, meanness))  # These go to eleven!
         nerdiness = max(1, min(10, nerdiness))
-        
+
         # Build the prompt
         prompt = self._build_prompt(flavor, meanness, nerdiness, target_name)
-        
-        try:
-            # Generate the joke
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=prompt
-            )
-            joke = response.text.strip()
-            
+
+        # Generate the joke. The manager handles retries, failover to the
+        # fallback provider, and reconnecting a downed server; None means
+        # every configured provider struck out.
+        joke = self.llm.generate(prompt)
+
+        if joke:
+            joke = joke.strip().strip('"').strip()
             logger.info(f"Generated {flavor} joke (M:{meanness}, N:{nerdiness})")
             return joke
-            
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(f"Failed to generate joke: {e}")
-            
-            # Check if it's a rate limit/quota error (429)
-            if "429" in error_msg or "quota" in error_msg.lower() or "rate limit" in error_msg.lower():
-                rate_limit_jokes = [
-                    "Yo mama hitting this API so hard, even Google told her to slow down! 🚦 (Rate limit exceeded, try again in a minute)",
-                    "Yo mama's requests so thicc, the API said 'I need a break!' 💤 (Quota exceeded, please try again later)",
-                    "Yo mama making so many requests, the API filed a restraining order! 🚨 (Rate limit hit, chill for a sec)",
-                    "Yo mama so demanding, she exceeded her quota faster than a script kiddie with a new API key! ⚠️ (Try again in 60 seconds)",
-                    "Yo mama hit that rate limit so fast, even the API was like 'Damn girl, pace yourself!' 🔥 (Quota exceeded, wait a minute)",
-                    "Yo mama's API calls so excessive, Google Gemini ghosted her! 👻 (Rate limit reached, try again soon)"
-                ]
-                return random.choice(rate_limit_jokes)
-            
-            # For other errors, use fallback joke
-            return self._get_fallback_joke(flavor)
-    
+
+        # Check if the failure smells like a rate limit/quota error (429)
+        error_msg = self._last_error() or ''
+        if "429" in error_msg or "quota" in error_msg.lower() or "rate limit" in error_msg.lower():
+            rate_limit_jokes = [
+                "Yo mama hitting this API so hard, even Google told her to slow down! 🚦 (Rate limit exceeded, try again in a minute)",
+                "Yo mama's requests so thicc, the API said 'I need a break!' 💤 (Quota exceeded, please try again later)",
+                "Yo mama making so many requests, the API filed a restraining order! 🚨 (Rate limit hit, chill for a sec)",
+                "Yo mama so demanding, she exceeded her quota faster than a script kiddie with a new API key! ⚠️ (Try again in 60 seconds)",
+                "Yo mama hit that rate limit so fast, even the API was like 'Damn girl, pace yourself!' 🔥 (Quota exceeded, wait a minute)",
+                "Yo mama's API calls so excessive, Google Gemini ghosted her! 👻 (Rate limit reached, try again soon)"
+            ]
+            return random.choice(rate_limit_jokes)
+
+        # For other errors, use fallback joke
+        return self._get_fallback_joke(flavor)
+
+    def _last_error(self) -> Optional[str]:
+        """Most recent error from any configured provider, for snark routing."""
+        try:
+            status = self.llm.status()
+        except Exception:
+            return None
+
+        providers = [status.get('primary')] + list(status.get('fallbacks') or [])
+        for provider in providers:
+            if provider and provider.get('last_error'):
+                return provider['last_error']
+        return None
+
     def _build_prompt(
         self,
         flavor: str,
@@ -137,8 +185,8 @@ class YoMamaGenerator:
         nerdiness: int,
         target_name: Optional[str]
     ) -> str:
-        """Build the prompt for Gemini based on parameters."""
-        
+        """Build the LLM prompt based on parameters."""
+
         # Define flavor-specific context
         flavor_contexts = {
             'classic': 'CLASSIC traditional Yo Mama jokes - use timeless formats like "so fat", "so ugly", "so old", "so stupid", "so poor", "so hairy", "so short", "so tall". Examples: "Yo mama so fat when sitting around the house, literally sits AROUND the house", "Yo mama so fat the scale said \'I need your weight not your phone number\'", "Yo mama so fat I took a picture last Christmas and it\'s still printing". Keep it traditional, punchy, and non-technical. Use gender-neutral language.',
@@ -155,9 +203,9 @@ class YoMamaGenerator:
             'radio': 'amateur radio, ham radio, frequencies, bands (HF/VHF/UHF), antennas, SWR, propagation, callsigns, morse code, repeaters, QSO, QSL cards, ARRL, FCC licenses (Technician/General/Extra), rigs, transceivers, DX, contestin',
             'thegame': 'The Game - a mind game where thinking about The Game means you lose. Create creative, funny ways to tell them they just lost The Game. Be clever and unexpected. Reference memes, internet culture, or tech concepts if appropriate.'
         }
-        
+
         flavor_context = flavor_contexts.get(flavor, 'general technology')
-        
+
         # Define meanness guidance
         meanness_guide = {
             1: 'extremely gentle and wholesome, just playful teasing',
@@ -172,7 +220,7 @@ class YoMamaGenerator:
             10: 'absolutely merciless and nuclear-level savage',
             11: 'THESE GO TO ELEVEN - ABSOLUTELY RUTHLESS AND DEVASTATING - go for the jugular with no mercy whatsoever. Use the most cutting, brutal, savage insults possible. Make it genuinely offensive and shocking. Hold nothing back. This should be emotionally destructive and leave lasting damage. Thermonuclear-level roast that would make a comedian wince. ONE LOUDER than 10.'
         }
-        
+
         # Define nerdiness guidance
         nerdiness_guide = {
             1: 'use only basic everyday terms anyone would understand',
@@ -186,9 +234,9 @@ class YoMamaGenerator:
             9: 'use highly specialized technical knowledge',
             10: 'use extremely obscure technical references only experts would get'
         }
-        
+
         target = target_name if target_name else "yo mama"
-        
+
         prompt = f"""Generate a single "Yo Mama" style joke with these specifications:
 
 THEME/FLAVOR: {flavor} - Focus on {flavor_context}
@@ -207,6 +255,7 @@ REQUIREMENTS:
 - Keep it concise (1-2 sentences max)
 - Make it funny and original
 - Use gender-neutral language: avoid pronouns like "she/her/he/him" - use "they/them" or avoid pronouns entirely
+- Respond with ONLY the joke itself - no preamble, no explanation, no quotation marks
 
 EXAMPLES for reference (adjust based on parameters):
 
@@ -218,7 +267,7 @@ EXAMPLES for reference (adjust based on parameters):
 Generate ONE joke now, matching all specifications:"""
 
         return prompt
-    
+
     def _get_fallback_joke(self, flavor: str) -> str:
         """Return a fallback joke if generation fails."""
         fallbacks = {
@@ -232,7 +281,7 @@ Generate ONE joke now, matching all specifications:"""
             'thegame': "Congratulations! You just lost The Game. And so did everyone reading this. Sorry not sorry. 🎮💀",
         }
         return fallbacks.get(flavor, "Yo mama so outdated, even legacy systems moved on.")
-    
+
     def generate_batch(
         self,
         count: int = 5,
@@ -243,14 +292,14 @@ Generate ONE joke now, matching all specifications:"""
     ) -> list[str]:
         """
         Generate multiple jokes at once.
-        
+
         Args:
             count: Number of jokes to generate
             flavor: Joke flavor (random if None)
             meanness: Meanness level (1-10)
             nerdiness: Nerdiness level (1-10)
             target_name: Optional custom target name
-            
+
         Returns:
             List of generated jokes
         """
@@ -266,21 +315,21 @@ Generate ONE joke now, matching all specifications:"""
                 jokes.append(joke)
             except Exception as e:
                 logger.error(f"Failed to generate joke {i+1}/{count}: {e}")
-        
+
         return jokes
-    
+
     def random_joke(self) -> str:
         """Generate a completely random joke with random parameters."""
         flavor = random.choice(self.FLAVORS)
         meanness = random.randint(3, 7)  # Moderate range
         nerdiness = random.randint(3, 7)  # Moderate range
-        
+
         return self.generate_joke(
             flavor=flavor,
             meanness=meanness,
             nerdiness=nerdiness
         )
-    
+
     @staticmethod
     def list_flavors() -> list[str]:
         """Get list of available joke flavors."""

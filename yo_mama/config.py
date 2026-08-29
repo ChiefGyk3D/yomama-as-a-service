@@ -118,12 +118,23 @@ class Config:
             return default
     
     # Specific configuration getters
-    
+
+    @property
+    def llm_provider(self) -> str:
+        """Primary LLM provider: 'ollama' or 'gemini'."""
+        return (self.get_secret('LLM_PROVIDER', 'gemini') or 'gemini').lower()
+
+    @property
+    def llm_fallback_providers(self) -> list[str]:
+        """Opt-in fallback provider chain, e.g. 'gemini' or 'gemini,ollama'."""
+        raw = self.get_secret('LLM_FALLBACK_PROVIDER', '') or ''
+        return [name.strip().lower() for name in raw.split(',') if name.strip()]
+
     @property
     def gemini_api_key(self) -> Optional[str]:
         """Get Google Gemini API key."""
         return self.get_secret('GEMINI_API_KEY')
-    
+
     @property
     def gemini_model(self) -> str:
         """Get Gemini model name."""
@@ -156,9 +167,14 @@ class Config:
         Returns:
             Tuple of (is_valid, list of missing keys)
         """
-        required_keys = ['GEMINI_API_KEY']
+        # A Gemini API key is only required if Gemini is actually in the
+        # provider chain. An Ollama-only setup needs no cloud credentials.
+        required_keys = []
+        if 'gemini' in [self.llm_provider] + self.llm_fallback_providers:
+            required_keys.append('GEMINI_API_KEY')
+
         missing = []
-        
+
         for key in required_keys:
             if not self.get_secret(key):
                 missing.append(key)

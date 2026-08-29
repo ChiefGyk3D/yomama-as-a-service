@@ -11,6 +11,7 @@ RUN apt-get update && \
         gcc \
         g++ \
         make \
+        git \
         libffi-dev \
         libssl-dev \
     && rm -rf /var/lib/apt/lists/*

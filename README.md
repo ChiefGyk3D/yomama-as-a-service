@@ -6,7 +6,7 @@
 
 ## *Deploying Insults at Scale* 🚀
 
-An AI-powered Yo Mama joke generator that crafts customized roasts using Google Gemini. Because your infrastructure isn't the only thing that needs load balancing—your insults do too. Generate jokes in various flavors (cybersecurity, tech, Linux, gaming, etc.) with adjustable meanness and nerdiness levels.
+An AI-powered Yo Mama joke generator that crafts customized roasts using a local Ollama server or Google Gemini—with automatic failover between them. Because your infrastructure isn't the only thing that needs load balancing—your insults do too. Generate jokes in various flavors (cybersecurity, tech, Linux, gaming, etc.) with adjustable meanness and nerdiness levels.
 
 **Now with 99.9% uptime for maximum disrespect!**
 
@@ -19,7 +19,8 @@ An AI-powered Yo Mama joke generator that crafts customized roasts using Google 
 - 🤓 **Nerdiness Control**: Scale from 1 (accessible to everyone) to 10 (extremely technical)—choose your own adventure in technical debt
 - � **Docker Support**: Multi-stage builds with automatic OS updates—containerized roasting for the cloud-native era
 - �🔒 **Enterprise-Grade Secrets Management**: Doppler, AWS Secrets Manager, HashiCorp Vault, or .env—because even your API keys deserve better than yo mama's password: "password123"
-- 🤖 **Google Gemini AI**: Powered by Gemini 2.5 Flash-Lite (configurable)—faster than yo mama trying to close all her browser tabs
+- 🤖 **Your AI or Theirs**: Run jokes on your own Ollama server (local, private, free) or Google Gemini (cloud)—with automatic failover between them, so the roasts keep flowing even when yo mama trips over the GPU power cable
+- 🏠 **Local-First Option**: Point it at any Ollama host and your insults never leave your network—self-hosted disrespect, the way the founders intended
 - 💬 **Discord Bot**: Full slash commands and text commands support—now with less latency than yo mama's reaction time
 - 🔷 **Matrix Bot**: Federated roasting across the Matrix network—because centralized burns are so 2010
 - 📦 **Batch Generation**: Generate multiple jokes at once—horizontal scaling for maximum psychological impact
@@ -30,7 +31,7 @@ An AI-powered Yo Mama joke generator that crafts customized roasts using Google 
 
 - **For Docker**: Docker 20.10+ and Docker Compose 2.0+ (the professional way)
 - **For Local**: Python 3.10+ (older versions are slower than yo mama climbing stairs)
-- Google Gemini API key ([Get one here](https://makersuite.google.com/app/apikey))—free tier included, unlike yo mama's medical bills
+- An LLM to do the roasting—either an [Ollama](https://ollama.com) server on your network (local and private) or a Google Gemini API key ([Get one here](https://makersuite.google.com/app/apikey))—free tier included, unlike yo mama's medical bills
 - Optional: Doppler account for secrets management (recommended for environments where yo mama can't peek at your .env file)
 
 ## 🚀 Quick Start
@@ -91,7 +92,52 @@ doppler setup
 doppler secrets set GEMINI_API_KEY="your_key_here"
 ```
 
-### 3. Run the Bot
+#### 3. Pick Your AI Provider
+
+Joke generation runs through [hypeman](https://github.com/ChiefGyk3D/hypeman), the same
+LLM layer as Stream Daemon and Boon Tube Daemon: pick a primary provider,
+optionally add a fallback chain, and the bot handles outages and reconnects on
+its own.
+
+**Google Gemini (default)** — cloud, free tier, zero hardware:
+
+```bash
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-2.5-flash-lite   # optional
+```
+
+**Ollama** — local, private, and free-except-for-electricity:
+
+```bash
+LLM_PROVIDER=ollama
+LLM_OLLAMA_HOST=http://192.168.1.100   # your Ollama server
+LLM_OLLAMA_PORT=11434                  # optional, default 11434
+LLM_OLLAMA_MODEL=gemma3:4b             # any model your server has pulled
+```
+
+**Local-first with cloud failover (recommended)** — jokes stay on your network
+until your AI box goes down, then Gemini covers while the bot keeps retrying
+the local server:
+
+```bash
+LLM_PROVIDER=ollama
+LLM_FALLBACK_PROVIDER=gemini
+LLM_OLLAMA_HOST=http://192.168.1.100
+LLM_OLLAMA_MODEL=gemma3:4b
+GEMINI_API_KEY=your_key_here
+```
+
+The fallback is strictly opt-in: if you chose Ollama so your prompts stay
+local, the bot will never quietly ship them to Google. No provider available at
+all? You get canned fallback jokes instead of a crash—degraded comedy, not
+downtime.
+
+Tuning knobs (optional): `LLM_TEMPERATURE` (default 0.9—jokes need chaos) and
+`LLM_MAX_TOKENS` (default 150). Reasoning models (qwen3, gemma4, deepseek-r1)
+are automatically told to skip the philosophy and get straight to the
+punchline—nobody needs a chain of thought for a yo mama joke.
+
+### 4. Run the Bot
 
 ```bash
 # Run as Discord bot
