@@ -13,8 +13,14 @@ services:
     container_name: yomama-discord
     restart: unless-stopped
     environment:
+      # LLM provider selection (ollama = local, gemini = cloud)
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
+      - LLM_FALLBACK_PROVIDER=${LLM_FALLBACK_PROVIDER:-}
+      - LLM_OLLAMA_HOST=${LLM_OLLAMA_HOST:-http://localhost}
+      - LLM_OLLAMA_PORT=${LLM_OLLAMA_PORT:-11434}
+      - LLM_OLLAMA_MODEL=${LLM_OLLAMA_MODEL:-gemma3:4b}
       # Load from .env file
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash-lite}
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
       - DISCORD_PREFIX=${DISCORD_PREFIX:-$}
@@ -44,8 +50,14 @@ services:
     container_name: yomama-matrix
     restart: unless-stopped
     environment:
+      # LLM provider selection (ollama = local, gemini = cloud)
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
+      - LLM_FALLBACK_PROVIDER=${LLM_FALLBACK_PROVIDER:-}
+      - LLM_OLLAMA_HOST=${LLM_OLLAMA_HOST:-http://localhost}
+      - LLM_OLLAMA_PORT=${LLM_OLLAMA_PORT:-11434}
+      - LLM_OLLAMA_MODEL=${LLM_OLLAMA_MODEL:-gemma3:4b}
       # Load from .env file
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash-lite}
       - MATRIX_HOMESERVER=${MATRIX_HOMESERVER}
       - MATRIX_USER_ID=${MATRIX_USER_ID}
