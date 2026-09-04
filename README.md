@@ -423,6 +423,10 @@ GEMINI_API_KEY=your_key_here
 If the Ollama server goes offline, the bot serves canned fallback jokes and
 reconnects automatically when it returns.
 
+Every LLM key (retries, rate limiting, thinking mode for reasoning models
+like gemma4/qwen3, and more) is documented in the
+[hypeman-social configuration reference](https://github.com/ChiefGyk3D/hypeman/blob/main/docs/CONFIGURATION.md).
+
 ## 🤖 Platform Setup
 
 📖 **For detailed setup instructions, see [BOT_SETUP.md](BOT_SETUP.md)**
