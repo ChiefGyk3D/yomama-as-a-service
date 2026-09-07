@@ -5,7 +5,7 @@
 # Shared LLM layer (Gemini + Ollama with guardrails and failover) from the
 # hypeman-social library used across ChiefGyk3D's daemons. The extras pull
 # google-genai and ollama.
-hypeman-social[gemini,ollama]>=0.1.0,<0.2
+hypeman-social[gemini,ollama]>=0.2.0,<0.3
 python-dotenv==1.2.1
 doppler-sdk==1.3.0
 
