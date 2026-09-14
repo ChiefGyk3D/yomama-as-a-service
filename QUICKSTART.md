@@ -9,11 +9,32 @@
 # 2. Edit .env and add your API key
 nano .env  # or use your preferred editor
 # Add: GEMINI_API_KEY=your_actual_api_key_here
+# (or go keyless with Ollama — see "Local Model with Ollama" below)
 
 # 3. Run the bot (choose mode)
 ./run.sh              # CLI interactive mode
 ./run.sh --discord    # Discord bot
 ./run.sh --matrix     # Matrix bot
+```
+
+Prefer containers? `./docker-build.sh && docker-compose up -d` — see
+[DOCKER.md](DOCKER.md).
+
+## Local Model with Ollama (No API Key)
+
+Jokes run through the [hypeman-social](https://github.com/ChiefGyk3D/hypeman)
+LLM layer, so you can point the bot at your own Ollama server instead of Gemini:
+
+```bash
+# In .env
+LLM_PROVIDER=ollama
+LLM_OLLAMA_HOST=http://your-ollama-box   # default: http://localhost
+LLM_OLLAMA_PORT=11434
+LLM_OLLAMA_MODEL=gemma3:4b
+
+# Optional: fall back to Gemini when the local box is down
+LLM_FALLBACK_PROVIDER=gemini
+GEMINI_API_KEY=your_key_here
 ```
 
 ## Common Usage
@@ -28,7 +49,7 @@ nano .env  # or use your preferred editor
 python main.py --discord
 ```
 
-**Discord Commands:**
+**Discord Commands** (text equivalents `!joke`, `!random`, `!flavors`, `!help` also work):
 - `/joke classic 8 1` - Traditional Yo Mama joke (savage, accessible)
 - `/joke cybersecurity 8 9` - Harsh, nerdy cybersecurity roast
 - `/random` - Random joke with random settings
@@ -83,14 +104,18 @@ Once in interactive mode, you can use:
 ```
 [Enter]         Generate joke with current settings
 f tech          Change flavor to tech
-m 8             Set meanness to 8
+m 8             Set meanness to 8 (1-11; 11 is Spinal Tap mode 🎸)
 n 9             Set nerdiness to 9
+t your code     Change the target name ('t reset' restores "yo mama")
 b 5             Generate 5 jokes
 r               Random joke
 settings        Show current settings
 flavors         List all flavors
 quit            Exit
 ```
+
+Note: the `-m/--meanness` command-line flag accepts `1-10`. Meanness 11 is
+available here in interactive mode, or by setting `DEFAULT_MEANNESS=11`.
 
 ## Doppler Setup (Optional)
 
@@ -151,9 +176,19 @@ cat .env | grep GEMINI_API_KEY
 # Should show: GEMINI_API_KEY=your_actual_key
 ```
 
+A Gemini key is only required when `gemini` is in the provider chain. An
+Ollama-only setup (`LLM_PROVIDER=ollama` with no `LLM_FALLBACK_PROVIDER`)
+starts without one.
+
+### Bot replies with the same canned joke every time
+
+That's the fallback joke — the LLM backend is unreachable. Check the logs for
+the provider that failed, verify `GEMINI_API_KEY`, or confirm your Ollama server
+is reachable at `LLM_OLLAMA_HOST:LLM_OLLAMA_PORT`.
+
 ### Module not found
 ```bash
-# Reinstall dependencies
+# Reinstall dependencies (installs hypeman-social with the gemini+ollama extras)
 source venv/bin/activate
 pip install -r requirements.txt
 ```

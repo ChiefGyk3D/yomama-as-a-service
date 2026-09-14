@@ -147,11 +147,22 @@ doppler projects create yo-mama-bot
 doppler setup --project yo-mama-bot --config dev
 ```
 
+> **Project name:** when `DOPPLER_PROJECT` is unset the code falls back to
+> `yo-mama-bot`, which is what these examples use. The shipped `.env.example`
+> and `docker-compose.yml` set it to `yomama-as-a-service` instead — whichever
+> you pick, make `DOPPLER_PROJECT` match the project you actually created.
+
 **3. Add secrets:**
 
 ```bash
 # Core secrets
 doppler secrets set GEMINI_API_KEY="your_gemini_key"
+
+# Optional: LLM backend selection (any LLM_* key works here too)
+doppler secrets set LLM_PROVIDER="gemini"
+# Ollama-only setups need no Gemini key at all:
+#   doppler secrets set LLM_PROVIDER="ollama"
+#   doppler secrets set LLM_OLLAMA_HOST="http://your-ollama-box"
 
 # Discord bot
 doppler secrets set DISCORD_BOT_TOKEN="your_discord_token"
@@ -414,7 +425,7 @@ DOPPLER_PROJECT=yo-mama-bot
 DOPPLER_CONFIG=prd
 
 # But keep some local overrides in .env
-GEMINI_MODEL=gemini-1.5-pro
+GEMINI_MODEL=gemini-2.5-pro
 LOG_LEVEL=DEBUG
 
 # The bot will use Doppler for GEMINI_API_KEY, DISCORD_BOT_TOKEN, etc.
@@ -478,7 +489,7 @@ DOPPLER_CONFIG=prd
 Run the test script to verify your secrets setup:
 
 ```bash
-python test_setup.py
+python tests/test_setup.py
 ```
 
 This will check:
@@ -486,6 +497,10 @@ This will check:
 - ✅ Secrets manager connectivity
 - ✅ Required secrets present
 - ✅ Configuration valid
+
+Note that `GEMINI_API_KEY` is only validated as required when `gemini` is in the
+provider chain (`LLM_PROVIDER` / `LLM_FALLBACK_PROVIDER`). An Ollama-only setup
+passes validation without any cloud credentials.
 
 ---
 
@@ -549,7 +564,8 @@ print("AWS keys:", list(aws_secrets.keys()))
 
 # Check environment
 import os
-print("Env keys:", [k for k in os.environ.keys() if 'GEMINI' in k or 'DISCORD' in k])
+print("Env keys:", [k for k in os.environ.keys()
+                    if 'GEMINI' in k or 'DISCORD' in k or k.startswith('LLM_')])
 ```
 
 ---
