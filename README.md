@@ -6,7 +6,12 @@
 
 ## *Deploying Insults at Scale* 🚀
 
-An AI-powered Yo Mama joke generator that crafts customized roasts using Google Gemini. Because your infrastructure isn't the only thing that needs load balancing—your insults do too. Generate jokes in various flavors (cybersecurity, tech, Linux, gaming, etc.) with adjustable meanness and nerdiness levels.
+[![CI - Tests](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/ci-tests.yml/badge.svg)](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/ci-tests.yml)
+[![Docker Build & Publish](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/docker-build-publish.yml/badge.svg)](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/docker-build-publish.yml)
+[![CodeQL](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/codeql-analysis.yml)
+[![License: MPL-2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](LICENSE)
+
+An AI-powered Yo Mama joke generator that crafts customized roasts using Google Gemini **or a local Ollama server**. Because your infrastructure isn't the only thing that needs load balancing—your insults do too. Generate jokes in various flavors (cybersecurity, tech, Linux, gaming, etc.) with adjustable meanness and nerdiness levels.
 
 **Now with 99.9% uptime for maximum disrespect!**
 
@@ -17,9 +22,10 @@ An AI-powered Yo Mama joke generator that crafts customized roasts using Google 
 - 🎯 **Multiple Flavors**: Classic (traditional Yo Mama jokes), cybersecurity, tech, Linux, gaming, programming, networking, cloud, DevOps, database, and more—because microservices should apply to insults too
 - 🔥 **Adjustable Meanness**: Scale from 1 (gentle) to 11 (absolutely savage)—like severity levels, but for emotional damage. Why 11? Because it's one louder. 🎸
 - 🤓 **Nerdiness Control**: Scale from 1 (accessible to everyone) to 10 (extremely technical)—choose your own adventure in technical debt
-- � **Docker Support**: Multi-stage builds with automatic OS updates—containerized roasting for the cloud-native era
-- �🔒 **Enterprise-Grade Secrets Management**: Doppler, AWS Secrets Manager, HashiCorp Vault, or .env—because even your API keys deserve better than yo mama's password: "password123"
-- 🤖 **Google Gemini AI**: Powered by Gemini 2.5 Flash-Lite (configurable)—faster than yo mama trying to close all her browser tabs
+- 🐳 **Docker Support**: Multi-stage builds with automatic OS updates, published to GHCR for amd64 and arm64—containerized roasting for the cloud-native era
+- 🔒 **Enterprise-Grade Secrets Management**: Doppler, AWS Secrets Manager, HashiCorp Vault, or .env—because even your API keys deserve better than yo mama's password: "password123"
+- 🤖 **Pluggable AI Backend**: Google Gemini (default: Gemini 2.5 Flash-Lite) or a self-hosted Ollama server, with optional failover between them—faster than yo mama trying to close all her browser tabs
+- 🧠 **Shared LLM Layer**: Retries, backoff, reconnection, and guardrails come from [hypeman-social](https://github.com/ChiefGyk3D/hypeman), the same library behind the announcement daemons
 - 💬 **Discord Bot**: Full slash commands and text commands support—now with less latency than yo mama's reaction time
 - 🔷 **Matrix Bot**: Federated roasting across the Matrix network—because centralized burns are so 2010
 - 📦 **Batch Generation**: Generate multiple jokes at once—horizontal scaling for maximum psychological impact
@@ -30,7 +36,9 @@ An AI-powered Yo Mama joke generator that crafts customized roasts using Google 
 
 - **For Docker**: Docker 20.10+ and Docker Compose 2.0+ (the professional way)
 - **For Local**: Python 3.10+ (older versions are slower than yo mama climbing stairs)
-- Google Gemini API key ([Get one here](https://makersuite.google.com/app/apikey))—free tier included, unlike yo mama's medical bills
+- An LLM backend—pick one:
+  - Google Gemini API key ([Get one here](https://makersuite.google.com/app/apikey))—free tier included, unlike yo mama's medical bills
+  - Or an [Ollama](https://ollama.com) server you control (no API key, no cloud; see [Using a Local Ollama Server](#using-a-local-ollama-server-instead))
 - Optional: Doppler account for secrets management (recommended for environments where yo mama can't peek at your .env file)
 
 ## 🚀 Quick Start
@@ -50,12 +58,21 @@ See [scripts/README.md](scripts/README.md) for full script documentation.
 ### Option 2: Docker (Recommended for Production) 🐳
 
 ```bash
-# Build and run with Docker
+# Build locally and run
 ./docker-build.sh
 docker-compose up -d
 
 # View logs
 docker-compose logs -f
+```
+
+Prefer not to build? Multi-arch images (amd64 + arm64) are published to GHCR on
+every push to `main` and for every `v*.*.*` release tag:
+
+```bash
+docker pull ghcr.io/chiefgyk3d/yomama-as-a-service:latest
+docker run --rm --env-file .env ghcr.io/chiefgyk3d/yomama-as-a-service:latest \
+  python main.py --discord
 ```
 
 See [DOCKER.md](DOCKER.md) for complete Docker documentation.
@@ -75,6 +92,7 @@ pip install -r requirements.txt
 ```bash
 cp .env.example .env
 # Edit .env and add your GEMINI_API_KEY
+# (or set LLM_PROVIDER=ollama and point LLM_OLLAMA_HOST at your own server)
 ```
 
 #### Option B: Using Doppler (Recommended for Production)
@@ -128,13 +146,15 @@ python main.py --discord
 **Slash Commands:**
 - `/joke [flavor] [meanness] [nerdiness] [target]` - Generate a joke
 - `/random` - Generate a random joke
-- `/batch [count] [flavor] [meanness] [nerdiness]` - Generate multiple jokes
+- `/batch [count] [flavor] [meanness] [nerdiness]` - Generate multiple jokes (1-10)
 - `/flavors` - List available flavors
+- `/help` - Show help, parameters, and examples
 
-**Text Commands:**
+**Text Commands** (prefix configurable via `DISCORD_PREFIX`, default `!`):
 - `!joke [flavor] [meanness] [nerdiness]` - Generate a joke
 - `!random` - Generate a random joke
 - `!flavors` - List available flavors
+- `!help` - Show help message
 
 ### Matrix Bot
 
@@ -146,7 +166,7 @@ python main.py --matrix
 **Commands:**
 - `!joke [flavor] [meanness] [nerdiness]` - Generate a joke
 - `!random` - Generate a random joke
-- `!batch [count] [flavor]` - Generate multiple jokes
+- `!batch [count] [flavor]` - Generate multiple jokes (1-10, default 3)
 - `!flavors` - List available flavors
 - `!help` - Show help message
 
@@ -167,12 +187,13 @@ python main.py -b 5 -f linux -m 6 -n 8
 # Use a custom target name
 python main.py -f gaming -t "your code" -m 7
 
-# Turn it up to 11 (Spinal Tap mode) 🎸
-python main.py -f cybersecurity -m 11 -n 10
-
 # Random joke with random parameters
 python main.py -r
 ```
+
+> **Note on meanness 11 🎸** The `-m/--meanness` flag accepts `1-10`. Level 11
+> (Spinal Tap mode) is reachable from [interactive mode](#interactive-mode)
+> with `m 11`, or by setting `DEFAULT_MEANNESS=11` and running without `-m`.
 
 ### Interactive Mode
 
@@ -195,8 +216,7 @@ Interactive commands:
 ### Python API
 
 ```python
-from yo_mama_generator import YoMamaGenerator
-from config import get_config
+from yo_mama import YoMamaGenerator, get_config
 
 # Initialize
 config = get_config()
@@ -282,20 +302,27 @@ The bot uses a comprehensive priority system for secrets:
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `GEMINI_API_KEY` | Google Gemini API key | - | ✅ Yes (unless using Ollama) |
+| `GEMINI_API_KEY` | Google Gemini API key | - | ✅ Yes, unless Gemini is out of the provider chain (Ollama-only) |
 | `GEMINI_MODEL` | Gemini model name | `gemini-2.5-flash-lite` | No |
-| `LLM_PROVIDER` | AI backend: `gemini` or `ollama` | `gemini` | No |
+| `LLM_PROVIDER` | Primary AI backend: `gemini` or `ollama` | `gemini` | No |
 | `LLM_OLLAMA_HOST` | Ollama server host (when provider is ollama) | `http://localhost` | No |
 | `LLM_OLLAMA_PORT` | Ollama server port | `11434` | No |
 | `LLM_OLLAMA_MODEL` | Ollama model name | `gemma3:4b` | No |
 | `LLM_FALLBACK_PROVIDER` | Optional failover backend (e.g. `gemini` behind an Ollama primary) | - | No |
+| `LLM_TEMPERATURE` | Sampling temperature; the bot raises hypeman's default for funnier jokes | `0.9` | No |
 | `DEFAULT_FLAVOR` | Default joke flavor | `tech` | No |
 | `DEFAULT_MEANNESS` | Default meanness (1-11, these go to 11 🎸) | `5` | No |
 | `DEFAULT_NERDINESS` | Default nerdiness (1-10) | `5` | No |
 | `LOG_LEVEL` | Logging level | `INFO` | No |
+| `SECRETS_MANAGER` | Alternative secrets backend: `aws`, `vault`, or `none` | `none` | No |
+| `SECRETS_VAULT_URL` | HashiCorp Vault address (when `SECRETS_MANAGER=vault`) | - | No |
+| `SECRETS_VAULT_TOKEN` | HashiCorp Vault token (when `SECRETS_MANAGER=vault`) | - | No |
 | `DOPPLER_TOKEN` | Doppler service token | - | No |
 | `DOPPLER_PROJECT` | Doppler project name | `yo-mama-bot` | No |
 | `DOPPLER_CONFIG` | Doppler config/env | `dev` | No |
+
+> Any other `LLM_*` key understood by [hypeman-social](https://github.com/ChiefGyk3D/hypeman/blob/main/docs/CONFIGURATION.md)
+> (retries, rate limiting, thinking mode, …) is passed straight through.
 
 **Discord Bot:**
 
@@ -311,32 +338,53 @@ The bot uses a comprehensive priority system for secrets:
 |----------|-------------|----------|
 | `MATRIX_HOMESERVER` | Matrix homeserver URL | ✅ Yes |
 | `MATRIX_USER_ID` | Bot user ID (e.g., @bot:matrix.org) | ✅ Yes |
-| `MATRIX_ACCESS_TOKEN` | Bot access token | ✅ Yes |
-| `MATRIX_DEVICE_ID` | Device ID | No |
+| `MATRIX_ACCESS_TOKEN` | Bot access token | ✅ Yes, unless `MATRIX_PASSWORD` is set |
+| `MATRIX_PASSWORD` | Bot password (used to log in when no access token is set) | ✅ Yes, unless `MATRIX_ACCESS_TOKEN` is set |
+| `MATRIX_DEVICE_ID` | Device ID | No (default: `yo_mama_bot`) |
 | `MATRIX_PREFIX` | Command prefix | No (default: `!`) |
 | `MATRIX_AUTO_JOIN` | Auto-join invited rooms | No (default: true) |
 
 ## 📦 Project Structure
 
 ```
-Yo_Mama/
+yomama-as-a-service/
 ├── main.py                        # Main entry point (CLI/Discord/Matrix)
 ├── demo.py                        # API usage demonstrations
 ├── requirements.txt               # Python dependencies
 ├── .env.example                   # Example configuration
-├── setup.sh                       # Automated setup
+├── setup.sh                       # Automated setup (venv + deps + .env)
 ├── run.sh                         # Quick run script
+├── run_discord.sh                 # Run the Discord bot
+├── run_matrix.sh                  # Run the Matrix bot
+├── Dockerfile                     # Multi-stage image (python:3.14-slim)
+├── docker-compose.yml             # Discord + Matrix services
+├── docker-build.sh                # Rebuild the image from scratch
+├── docker-commands.sh             # Common Docker/Compose helpers
 ├── README.md                      # This file
 ├── QUICKSTART.md                  # Quick reference
+├── BOT_SETUP.md                   # Discord & Matrix setup guide
+├── DOCKER.md                      # Docker deployment guide
+├── SECRETS_MANAGEMENT.md          # Doppler/AWS/Vault/.env guide
+├── .github/
+│   ├── dependabot.yml             # Automated dependency updates
+│   └── workflows/                 # CI, security scanning, image publishing
+├── scripts/                       # Setup and systemd helpers
+│   ├── README.md
+│   ├── create-secrets.sh          # Interactive secrets wizard
+│   ├── install-yomama.sh          # systemd service installer
+│   ├── uninstall-yomama.sh        # systemd service removal
+│   └── setup_matrix_bot.sh        # Matrix credential helper
 ├── tests/                         # Test suite
 │   ├── __init__.py
 │   ├── test_imports.py            # Dependency import tests
 │   ├── test_config.py             # Configuration tests
 │   ├── test_generator.py          # Generator tests
+│   ├── test_genai_integration.py  # LLM layer integration tests (mocked)
 │   └── test_setup.py              # Legacy configuration test script
 └── yo_mama/                       # Main package
     ├── __init__.py
     ├── config.py                  # Configuration management
+    ├── secrets.py                 # Doppler/AWS/Vault secret loading
     ├── yo_mama_generator.py       # Joke generator core
     └── platforms/                 # Platform integrations
         ├── __init__.py
@@ -376,9 +424,10 @@ The project includes a comprehensive test suite to ensure everything works corre
 pytest tests/ -v
 
 # Run specific test modules
-pytest tests/test_imports.py -v    # Test dependencies
-pytest tests/test_config.py -v     # Test configuration
-pytest tests/test_generator.py -v  # Test generator
+pytest tests/test_imports.py -v            # Test dependencies
+pytest tests/test_config.py -v             # Test configuration
+pytest tests/test_generator.py -v          # Test generator
+pytest tests/test_genai_integration.py -v  # Test the LLM layer (mocked)
 
 # Run tests with coverage
 pytest tests/ --cov=yo_mama --cov-report=html
@@ -390,6 +439,10 @@ python tests/test_setup.py
 python main.py -f tech -m 5 -n 5
 ```
 
+The unit tests mock the LLM layer, so no API key or Ollama server is needed to
+run them. CI runs the suite on Python 3.10 through 3.14, plus Ruff, Bandit, and
+Safety checks.
+
 ### Changing the AI Model
 
 You can use any Google Gemini model:
@@ -400,8 +453,10 @@ GEMINI_MODEL=gemini-2.5-flash-lite                # Default (ultra fast, cost-ef
 GEMINI_MODEL=gemini-2.5-flash                     # Gemini 2.5 Flash (balanced)
 GEMINI_MODEL=gemini-2.5-pro                       # Gemini 2.5 Pro (advanced thinking)
 GEMINI_MODEL=gemini-2.0-flash                     # Gemini 2.0 Flash
-GEMINI_MODEL=gemini-1.5-pro                       # Gemini 1.5 Pro
 ```
+
+`GEMINI_MODEL` is the historical key and still works; internally it is mapped to
+hypeman-social's `LLM_GEMINI_MODEL`, which you can also set directly.
 
 ### Using a Local Ollama Server Instead
 
@@ -468,6 +523,8 @@ like gemma4/qwen3, and more) is documented in the
 - [x] Discord bot with slash commands—✅ Shipped
 - [x] Matrix bot with room support—✅ Federated and ready
 - [x] Rate limit handling with Yo Mama-style error messages—✅ Even errors are funny now
+- [x] Local model support via Ollama, with Gemini failover—✅ Roast offline, roast free
+- [x] Docker images published to GHCR (amd64 + arm64)—✅ Roasting on Raspberry Pis too
 - [ ] Bluesky integration—decentralized disrespect
 - [ ] Mastodon integration—federated flame-throwing
 - [ ] Web API with FastAPI—RESTful roasting as a service
@@ -521,13 +578,13 @@ Side effects may include: increased sass, improved roasting skills, and an uncon
 - **🐛 Report bugs** - Help us improve joke quality and reliability
 - **💡 Request features** - Share your ideas for new flavors or platforms
 - **🔧 Contribute** - Submit pull requests with new joke styles
-- **� Improve docs** - Help others deploy insults at scale
+- **📝 Improve docs** - Help others deploy insults at scale
 
 ### Community Channels
 
-- **[GitHub Discussions](https://github.com/ChiefGyk3D/Yo_Mama/discussions)** - Ask questions, share your best roasts
-- **[GitHub Issues](https://github.com/ChiefGyk3D/Yo_Mama/issues)** - Bug reports and feature requests
-- **[Pull Requests](https://github.com/ChiefGyk3D/Yo_Mama/pulls)** - Contribute code and improvements
+- **[GitHub Discussions](https://github.com/ChiefGyk3D/yomama-as-a-service/discussions)** - Ask questions, share your best roasts
+- **[GitHub Issues](https://github.com/ChiefGyk3D/yomama-as-a-service/issues)** - Bug reports and feature requests
+- **[Pull Requests](https://github.com/ChiefGyk3D/yomama-as-a-service/pulls)** - Contribute code and improvements
 
 ### Stay Updated
 
@@ -594,9 +651,9 @@ If you find YoMama-as-a-Service useful (or hilarious), consider supporting devel
 
 <div align="center">
 
-**Made with �🔥 and AI** | *Deploying Insults at Scale Since 2025*
+**Made with 💚🔥 and AI** | *Deploying Insults at Scale Since 2025*
 
-Powered by Google Gemini | Created by [ChiefGyk3D](https://github.com/ChiefGyk3D)
+Powered by Google Gemini or your own Ollama server | Created by [ChiefGyk3D](https://github.com/ChiefGyk3D)
 
 ## Author & Socials
 
