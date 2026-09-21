@@ -34,9 +34,6 @@ jobs:
         pip install -r requirements.txt
       test-command: python -m pytest tests/ -v --tb=short
       lint-command: ruff check yo_mama/ tests/ main.py demo.py --output-format=github
-      # Lint was advisory before the migration and stays so until the tree is
-      # clean; then delete this line and let it gate.
-      lint-continue-on-error: true
       dockerfile: Dockerfile
       docker-test-command: docker run --rm "$IMAGE" python -c "import yo_mama; print('Import successful')"
       doppler-project: yomama-as-a-service
