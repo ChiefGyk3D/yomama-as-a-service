@@ -49,6 +49,13 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
+# The runtime image has no use for pip. pip 26.x vendors msgpack 1.1.2 and
+# setuptools 70.3.0 (pkg_resources) and ships an SBOM naming them, which Trivy
+# reports as GHSA-6v7p-g79w-8964, CVE-2025-47273 and CVE-2026-59890 even
+# though neither package is installed. No pip release carries patched copies
+# yet, so the final stage drops pip; the builder keeps it.
+RUN python -m pip uninstall -y pip
+
 # Copy application code
 COPY --chown=yomama:yomama main.py .
 COPY --chown=yomama:yomama demo.py .
