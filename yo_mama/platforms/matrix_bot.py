@@ -6,10 +6,11 @@ Matrix bot platform for Yo Mama Bot.
 Supports Matrix rooms and commands.
 """
 
-import logging
 import asyncio
-from typing import Optional
-from nio import AsyncClient, MatrixRoom, RoomMessageText, InviteEvent
+import logging
+
+from nio import AsyncClient, InviteEvent, MatrixRoom, RoomMessageText
+
 from ..config import get_config
 from ..yo_mama_generator import YoMamaGenerator
 
@@ -95,7 +96,7 @@ class MatrixBot:
         try:
             await self.client.join(room.room_id)
             logger.info(f"Joined room {room.room_id}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # keep the bot alive on a bad invite; error is logged
             logger.error(f"Failed to join room: {e}")
     
     async def _handle_message(self, room: MatrixRoom, event: RoomMessageText):
@@ -136,9 +137,9 @@ class MatrixBot:
                 await self._cmd_thegame(room, args)
             else:
                 await self._send_message(room, f"Unknown command: {command}. Try !help")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # per-message handler; error is logged and reported
             logger.error(f"Error handling command: {e}")
-            await self._send_message(room, f"❌ Error: {str(e)}")
+            await self._send_message(room, f"❌ Error: {e!s}")
     
     async def _cmd_joke(self, room: MatrixRoom, args: list):
         """Handle !joke command."""
@@ -174,18 +175,17 @@ class MatrixBot:
         joke = self.generator.random_joke()
         await self._send_message(room, f"🎲 {joke}")
     
-    async def _cmd_thegame(self, room: MatrixRoom, args: list = None):
+    async def _cmd_thegame(self, room: MatrixRoom, args: list | None = None):
         """Handle !thegame command (Easter egg)."""
         # Extract user mention if provided (Matrix format: @user:server.com)
         target_name = None
         mention_text = ""
         
-        if args and len(args) > 0:
-            # Check if it's a Matrix user mention
-            if args[0].startswith('@'):
-                # Use "you" to directly address the mentioned user
-                target_name = "you"
-                mention_text = f"{args[0]} "
+        # Check if it's a Matrix user mention
+        if args and len(args) > 0 and args[0].startswith('@'):
+            # Use "you" to directly address the mentioned user
+            target_name = "you"
+            mention_text = f"{args[0]} "
         
         joke = self.generator.generate_joke(
             flavor="thegame",
@@ -283,10 +283,10 @@ class MatrixBot:
                 message_type="m.room.message",
                 content=content
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # keep the bot alive if a send fails; error is logged
             logger.error(f"Failed to send message: {e}")
     
-    async def send_joke_to_room(self, room_id: str, joke: str, settings: Optional[dict] = None):
+    async def send_joke_to_room(self, room_id: str, joke: str, settings: dict | None = None):
         """
         Send a joke to a specific room.
         
@@ -343,7 +343,7 @@ class MatrixBot:
                     logger.info("Login successful!")
                     logger.info(f"Access token: {response.access_token[:20]}... (save this to MATRIX_ACCESS_TOKEN)")
                 else:
-                    raise Exception(f"Login failed: {response}")
+                    raise RuntimeError(f"Login failed: {response}")
             else:
                 logger.info(f"Using existing access token for {self.user_id}")
             
@@ -377,7 +377,7 @@ def run_matrix_bot():
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
         sys.exit(0)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # process error boundary; error is logged with traceback
         logger.error(f"Bot crashed: {e}")
         import traceback
         traceback.print_exc()

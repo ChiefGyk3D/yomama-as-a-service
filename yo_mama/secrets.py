@@ -11,15 +11,15 @@ Priority order for secrets:
 5. Default values - LAST RESORT
 """
 
-import os
 import json
 import logging
-from typing import Optional, Dict, Any
+import os
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-def load_secrets_from_aws(secret_name: str) -> Dict[str, Any]:
+def load_secrets_from_aws(secret_name: str) -> dict[str, Any]:
     """
     Load secrets from AWS Secrets Manager.
     
@@ -41,12 +41,12 @@ def load_secrets_from_aws(secret_name: str) -> Dict[str, Any]:
     except ImportError:
         logger.warning("boto3 not installed. Install with: pip install boto3")
         return {}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # any backend failure degrades to the next source; logged
         logger.error(f"Failed to load AWS secret '{secret_name}': {type(e).__name__}")
         return {}
 
 
-def load_secrets_from_vault(secret_path: str) -> Dict[str, Any]:
+def load_secrets_from_vault(secret_path: str) -> dict[str, Any]:
     """
     Load secrets from HashiCorp Vault.
     
@@ -79,12 +79,12 @@ def load_secrets_from_vault(secret_path: str) -> Dict[str, Any]:
     except ImportError:
         logger.warning("hvac not installed. Install with: pip install hvac")
         return {}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # any backend failure degrades to the next source; logged
         logger.error(f"Failed to load Vault secret '{secret_path}': {type(e).__name__}")
         return {}
 
 
-def load_secrets_from_doppler(secret_name: Optional[str] = None) -> Dict[str, Any]:
+def load_secrets_from_doppler(secret_name: str | None = None) -> dict[str, Any]:
     """
     Load secrets from Doppler.
     
@@ -141,26 +141,26 @@ def load_secrets_from_doppler(secret_name: Optional[str] = None) -> Dict[str, An
                 logger.warning("No secrets found in Doppler response")
                 return {}
                 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # any backend failure degrades to the next source; logged
             logger.error(f"Failed to fetch Doppler secrets: {type(e).__name__}: {e}")
             return {}
             
     except ImportError:
         logger.warning("dopplersdk not installed. Install with: pip install doppler-sdk")
         return {}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # any backend failure degrades to the next source; logged
         logger.error(f"Failed to configure Doppler: {type(e).__name__}: {e}")
         return {}
 
 
 def get_secret(
     key: str,
-    platform: Optional[str] = None,
-    default: Optional[str] = None,
-    aws_secret_name: Optional[str] = None,
-    vault_secret_path: Optional[str] = None,
-    doppler_prefix: Optional[str] = None
-) -> Optional[str]:
+    platform: str | None = None,
+    default: str | None = None,
+    aws_secret_name: str | None = None,
+    vault_secret_path: str | None = None,
+    doppler_prefix: str | None = None
+) -> str | None:
     """
     Get a secret value with comprehensive priority system.
     
@@ -226,7 +226,7 @@ def get_secret(
         secret_manager = os.getenv('SECRETS_MANAGER', 'none').lower()
         
         # Priority 2: Try AWS Secrets Manager
-        if secret_manager == 'aws' and aws_secret_name:
+        if secret_manager == 'aws' and aws_secret_name:  # noqa: S105  # not a credential, it is the backend name
             aws_secrets = load_secrets_from_aws(aws_secret_name)
             if key.lower() in aws_secrets:
                 value = aws_secrets[key.lower()]
@@ -241,7 +241,7 @@ def get_secret(
                     return value
         
         # Priority 3: Try HashiCorp Vault
-        if secret_manager == 'vault' and vault_secret_path:
+        if secret_manager == 'vault' and vault_secret_path:  # noqa: S105  # not a credential, it is the backend name
             vault_secrets = load_secrets_from_vault(vault_secret_path)
             if key.lower() in vault_secrets:
                 value = vault_secrets[key.lower()]
@@ -269,7 +269,7 @@ def get_secret(
         
         return default
         
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # lookup must fall back to default; error is logged
         logger.error(f"Error getting secret '{key}': {type(e).__name__}: {e}")
         return default
 
@@ -277,9 +277,9 @@ def get_secret(
 def get_secrets_for_platform(
     platform: str,
     keys: list[str],
-    aws_secret_name: Optional[str] = None,
-    vault_secret_path: Optional[str] = None
-) -> Dict[str, Optional[str]]:
+    aws_secret_name: str | None = None,
+    vault_secret_path: str | None = None
+) -> dict[str, str | None]:
     """
     Get multiple secrets for a platform at once.
     
@@ -313,19 +313,19 @@ def get_secrets_for_platform(
 
 # Convenience functions for common use cases
 
-def get_doppler_secret(key: str, default: Optional[str] = None) -> Optional[str]:
+def get_doppler_secret(key: str, default: str | None = None) -> str | None:
     """Get a secret from Doppler only."""
     secrets = load_secrets_from_doppler()
     return secrets.get(key.upper(), default)
 
 
-def get_aws_secret(secret_name: str, key: str, default: Optional[str] = None) -> Optional[str]:
+def get_aws_secret(secret_name: str, key: str, default: str | None = None) -> str | None:
     """Get a specific key from an AWS secret."""
     secrets = load_secrets_from_aws(secret_name)
     return secrets.get(key.lower(), default)
 
 
-def get_vault_secret(secret_path: str, key: str, default: Optional[str] = None) -> Optional[str]:
+def get_vault_secret(secret_path: str, key: str, default: str | None = None) -> str | None:
     """Get a specific key from a Vault secret."""
     secrets = load_secrets_from_vault(secret_path)
     return secrets.get(key.lower(), default)

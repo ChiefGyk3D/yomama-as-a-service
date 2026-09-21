@@ -1,8 +1,13 @@
 # Ruff configuration. The `S` rules are bandit's security checks, so dropping
 # the separate bandit step from CI lost nothing; the tests are exempt from
 # them because assert and hard-coded fixtures are what tests are made of.
+# CI tests 3.10-3.14 and the Dockerfile ships 3.14, so `X | None` is fine at runtime.
+target-version = "py310"
+
 [lint]
 extend-select = ["S"]
 
 [lint.per-file-ignores]
 "tests/**" = ["S"]
+# S311: random here picks jokes/flavors, nothing security-relevant
+"yo_mama/yo_mama_generator.py" = ["S311"]
