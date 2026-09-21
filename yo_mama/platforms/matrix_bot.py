@@ -78,7 +78,8 @@ class MatrixBot:
         # Setup callbacks
         self._setup_callbacks()
         
-        logger.info(f"Matrix bot initialized for {self.user_id}")
+        auth = "password" if self.use_password_login else "access token"
+        logger.info(f"Matrix bot initialized ({auth} login)")
     
     def _setup_callbacks(self):
         """Setup Matrix event callbacks."""
@@ -336,16 +337,16 @@ class MatrixBot:
         try:
             # Login with password if needed
             if self.use_password_login:
-                logger.info(f"Logging in as {self.user_id} with password...")
+                logger.info("Logging in with password...")
                 response = await self.client.login(self.password)
                 
                 if hasattr(response, 'access_token'):
                     logger.info("Login successful!")
-                    logger.info(f"Access token: {response.access_token[:20]}... (save this to MATRIX_ACCESS_TOKEN)")
+                    logger.info("Login successful; set MATRIX_ACCESS_TOKEN to skip the password login next time")
                 else:
                     raise RuntimeError(f"Login failed: {response}")
             else:
-                logger.info(f"Using existing access token for {self.user_id}")
+                logger.info("Using existing access token")
             
             # Sync and run forever (only process new messages)
             await self.client.sync_forever(timeout=30000, full_state=False)

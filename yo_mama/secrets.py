@@ -35,14 +35,14 @@ def load_secrets_from_aws(secret_name: str) -> dict[str, Any]:
         client = boto3.client('secretsmanager')
         response = client.get_secret_value(SecretId=secret_name)
         secrets = json.loads(response['SecretString'])
-        logger.debug(f"Successfully loaded AWS secret: {secret_name}")
+        logger.debug(f"Loaded AWS secret with {len(secrets)} keys")
         # codeql[py/clear-text-logging-sensitive-data] - Function designed to return secrets
         return secrets
     except ImportError:
         logger.warning("boto3 not installed. Install with: pip install boto3")
         return {}
     except Exception as e:  # noqa: BLE001  # any backend failure degrades to the next source; logged
-        logger.error(f"Failed to load AWS secret '{secret_name}': {type(e).__name__}")
+        logger.error(f"Failed to load AWS secret: {type(e).__name__}")
         return {}
 
 
@@ -133,7 +133,7 @@ def load_secrets_from_doppler(secret_name: str | None = None) -> dict[str, Any]:
                         secrets_dict[secret_key] = secret_value.get('computed', secret_value.get('raw', ''))
                 
                 if secret_name and not secrets_dict:
-                    logger.debug(f"No secrets found with prefix '{secret_name}'")
+                    logger.debug("No Doppler secrets matched the requested prefix")
                 
                 # codeql[py/clear-text-logging-sensitive-data] - Function designed to return secrets
                 return secrets_dict
