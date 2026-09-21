@@ -40,6 +40,6 @@ jobs:
       dockerfile: Dockerfile
       push: ${{ github.event_name != 'pull_request' }}
       docker-test-command: docker run --rm "$IMAGE" python -c "import yo_mama; print('Import successful')"
-      doppler-project: yomama-as-a-service
+      doppler-project: ci
       doppler-config: ci
       doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}

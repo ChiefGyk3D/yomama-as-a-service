@@ -46,6 +46,6 @@ jobs:
                 - "/yo_mama/secrets.py"
       pip-audit-requirements: requirements.txt
       snyk: true
-      doppler-project: yomama-as-a-service
+      doppler-project: ci
       doppler-config: ci
       doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
