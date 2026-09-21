@@ -1,0 +1,44 @@
+# Lint, tests on Python 3.10-3.14, Docker build. The jobs live in
+# ChiefGyk3D/git-your-ship-together; this file only says what is specific to
+# YoMama-as-a-Service.
+name: CI
+
+on:
+  push:
+    branches: [main, develop, copilot/**]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    uses: ChiefGyk3D/git-your-ship-together/.github/workflows/python-ci.yml@d5d9556afeeb06f78419b91ecb5d146e789c6d51 # v1.0.0
+    permissions:
+      contents: read
+      id-token: write   # Doppler OIDC
+    secrets:
+      DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}   # optional Service Token fallback; unset means OIDC only
+    with:
+      python-versions: '["3.10", "3.11", "3.12", "3.13", "3.14"]'
+      coverage-python-version: "3.14"
+      lint-python-version: "3.14"
+      install-command: |
+        python -m pip install --upgrade "pip>=25.3"
+        pip install -r requirements.txt
+      test-command: python -m pytest tests/ -v --tb=short
+      lint-command: ruff check yo_mama/ tests/ main.py demo.py --output-format=github
+      # Lint was advisory before the migration and stays so until the tree is
+      # clean; then delete this line and let it gate.
+      lint-continue-on-error: true
+      dockerfile: Dockerfile
+      docker-test-command: docker run --rm "$IMAGE" python -c "import yo_mama; print('Import successful')"
+      doppler-project: yomama-as-a-service
+      doppler-config: ci
+      doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}

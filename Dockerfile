@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: MPL-2.0
 
 # Multi-stage build for YoMama-as-a-Service
-FROM python:3.14-slim as builder
+# The base image is pinned by digest so a rebuild is reproducible and a
+# retagged upstream image cannot slip in; Dependabot moves the digest.
+FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 as builder
 
 # Update OS packages and install build dependencies
 RUN apt-get update && \
@@ -26,7 +28,7 @@ RUN pip install --no-cache-dir --upgrade "pip>=25.3" && \
     pip install --no-cache-dir -r requirements.txt
 
 # Final stage
-FROM python:3.14-slim
+FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2
 
 # Update OS packages in final stage
 RUN apt-get update && \
