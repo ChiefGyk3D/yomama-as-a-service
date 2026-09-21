@@ -31,7 +31,7 @@ jobs:
       lint-python-version: "3.14"
       install-command: |
         python -m pip install --upgrade "pip>=25.3"
-        pip install -r requirements.txt
+        pip install --require-hashes -r requirements.txt
       test-command: python -m pytest tests/ -v --tb=short
       lint-command: ruff check yo_mama/ tests/ main.py demo.py --output-format=github
       dockerfile: Dockerfile
