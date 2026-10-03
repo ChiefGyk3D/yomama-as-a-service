@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2025 YoMama-as-a-Service contributors
 # SPDX-License-Identifier: MPL-2.0
 """
@@ -6,7 +5,7 @@ Test configuration loading and validation.
 """
 
 import unittest
-import os
+
 from yo_mama.config import get_config
 
 

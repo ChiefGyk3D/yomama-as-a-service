@@ -68,6 +68,10 @@ See [DOCKER.md](DOCKER.md) for complete Docker documentation.
 pip install -r requirements.txt
 ```
 
+`requirements.txt` is a generated lock with every dependency pinned to a
+version and its hashes; pip verifies each download against it. The direct
+dependencies live in `requirements.in`; see [Dependency lock](#dependency-lock).
+
 #### 2. Configure Secrets
 
 #### Option A: Using .env file (Simple)
@@ -282,8 +286,13 @@ The bot uses a comprehensive priority system for secrets:
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `GEMINI_API_KEY` | Google Gemini API key | - | ✅ Yes |
+| `GEMINI_API_KEY` | Google Gemini API key | - | ✅ Yes (unless using Ollama) |
 | `GEMINI_MODEL` | Gemini model name | `gemini-2.5-flash-lite` | No |
+| `LLM_PROVIDER` | AI backend: `gemini` or `ollama` | `gemini` | No |
+| `LLM_OLLAMA_HOST` | Ollama server host (when provider is ollama) | `http://localhost` | No |
+| `LLM_OLLAMA_PORT` | Ollama server port | `11434` | No |
+| `LLM_OLLAMA_MODEL` | Ollama model name | `gemma3:4b` | No |
+| `LLM_FALLBACK_PROVIDER` | Optional failover backend (e.g. `gemini` behind an Ollama primary) | - | No |
 | `DEFAULT_FLAVOR` | Default joke flavor | `tech` | No |
 | `DEFAULT_MEANNESS` | Default meanness (1-11, these go to 11 🎸) | `5` | No |
 | `DEFAULT_NERDINESS` | Default nerdiness (1-10) | `5` | No |
@@ -317,7 +326,8 @@ The bot uses a comprehensive priority system for secrets:
 Yo_Mama/
 ├── main.py                        # Main entry point (CLI/Discord/Matrix)
 ├── demo.py                        # API usage demonstrations
-├── requirements.txt               # Python dependencies
+├── requirements.in                # Direct Python dependencies
+├── requirements.txt               # Generated lock: every dependency pinned with hashes
 ├── .env.example                   # Example configuration
 ├── setup.sh                       # Automated setup
 ├── run.sh                         # Quick run script
@@ -362,6 +372,18 @@ Here are some examples of what the bot deploys:
 
 ## 🛠️ Development
 
+### Dependency lock
+
+`requirements.in` lists the direct dependencies. `requirements.txt` is
+generated from it and pins every dependency, transitive ones included, to a
+version and its SHA-256 hashes. pip enters hash-checking mode by itself when it
+reads the file, so `pip install -r requirements.txt` verifies every download,
+and CI and the Docker image install with `--require-hashes`: a package
+re-uploaded under the same version fails to install instead of shipping. To
+add or bump a dependency, edit `requirements.in` and regenerate the lock with
+the command in its header; never edit `requirements.txt` by hand. Dependabot
+regenerates it for version bumps.
+
 ### Running Tests
 
 The project includes a comprehensive test suite to ensure everything works correctly:
@@ -397,6 +419,30 @@ GEMINI_MODEL=gemini-2.5-pro                       # Gemini 2.5 Pro (advanced thi
 GEMINI_MODEL=gemini-2.0-flash                     # Gemini 2.0 Flash
 GEMINI_MODEL=gemini-1.5-pro                       # Gemini 1.5 Pro
 ```
+
+### Using a Local Ollama Server Instead
+
+The bot shares its LLM layer (via [hypeman-social](https://github.com/ChiefGyk3D/hypeman))
+with the announcement daemons, so it can run entirely on your own hardware —
+no API key, no cloud, your jokes never leave the network:
+
+```bash
+LLM_PROVIDER=ollama
+LLM_OLLAMA_HOST=http://your-ollama-box   # default: http://localhost
+LLM_OLLAMA_PORT=11434
+LLM_OLLAMA_MODEL=gemma3:4b               # or any model Ollama can load
+
+# Optional: fail over to Gemini when the local box is down
+LLM_FALLBACK_PROVIDER=gemini
+GEMINI_API_KEY=your_key_here
+```
+
+If the Ollama server goes offline, the bot serves canned fallback jokes and
+reconnects automatically when it returns.
+
+Every LLM key (retries, rate limiting, thinking mode for reasoning models
+like gemma4/qwen3, and more) is documented in the
+[hypeman-social configuration reference](https://github.com/ChiefGyk3D/hypeman/blob/main/docs/CONFIGURATION.md).
 
 ## 🤖 Platform Setup
 

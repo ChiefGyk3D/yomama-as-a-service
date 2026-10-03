@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2025 YoMama-as-a-Service contributors
 # SPDX-License-Identifier: MPL-2.0
 """
@@ -6,6 +5,7 @@ Test joke generator functionality.
 """
 
 import unittest
+
 from yo_mama.yo_mama_generator import YoMamaGenerator
 
 

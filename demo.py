@@ -7,6 +7,7 @@ This demonstrates the API usage for developers.
 """
 
 import sys
+
 from yo_mama.config import get_config
 from yo_mama.yo_mama_generator import YoMamaGenerator
 
@@ -214,7 +215,7 @@ def main():
     except KeyboardInterrupt:
         print("\n\n👋 Demo interrupted.\n")
         return 0
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # CLI error boundary; error is printed with traceback
         print(f"\n❌ Error during demo: {e}\n")
         import traceback
         traceback.print_exc()
