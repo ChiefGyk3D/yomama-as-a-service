@@ -1,0 +1,11 @@
+# Snyk policy. Each ignore is scoped to one rule and one path, with a reason
+# and an expiry; nothing is ignored repository-wide.
+version: v1.25.0
+ignore:
+  python/HardcodedNonCryptoSecret/test:
+    - 'tests/test_genai_integration.py':
+        reason: >-
+          'test_key_12345' is a placeholder assigned to a generator built
+          around a mocked engine; no network call is made and it is not a
+          credential.
+        expires: 2027-04-01T00:00:00.000Z
