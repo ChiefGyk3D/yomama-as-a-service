@@ -7,14 +7,18 @@
 FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 AS builder
 
 # Update OS packages and install build dependencies
+# Apt versions are left unpinned on purpose: the base image is pinned by digest,
+# and Debian removes superseded package versions, so exact apt pins would break
+# the build at every security update.
+# hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
-        gcc=4:14.2.0-1 \
-        g++=4:14.2.0-1 \
-        make=4.4.1-2 \
-        libffi-dev=3.4.8-2 \
-        libssl-dev=3.5.7-1~deb13u3 \
+        gcc \
+        g++ \
+        make \
+        libffi-dev \
+        libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -31,11 +35,15 @@ RUN pip install --no-cache-dir --upgrade "pip>=25.3" && \
 FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2
 
 # Update OS packages in final stage
+# Apt versions are left unpinned on purpose: the base image is pinned by digest,
+# and Debian removes superseded package versions, so exact apt pins would break
+# the build at every security update.
+# hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
-        ca-certificates=20250419 \
-        curl=8.14.1-2+deb13u5 \
+        ca-certificates \
+        curl \
     && rm -rf /var/lib/apt/lists/* && \
     apt-get clean
 
