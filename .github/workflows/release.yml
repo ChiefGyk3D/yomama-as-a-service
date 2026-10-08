@@ -37,7 +37,6 @@ jobs:
     secrets:
       DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}   # optional Service Token fallback; unset means OIDC only
     with:
-      hadolint-continue-on-error: true  # v1.15.0 lints the Dockerfile by default; report findings until the Dockerfile is clean
       dockerfile: Dockerfile
       push: ${{ github.event_name != 'pull_request' }}
       docker-test-command: docker run --rm "$IMAGE" python -c "import yo_mama; print('Import successful')"

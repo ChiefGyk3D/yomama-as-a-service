@@ -4,17 +4,17 @@
 # Multi-stage build for YoMama-as-a-Service
 # The base image is pinned by digest so a rebuild is reproducible and a
 # retagged upstream image cannot slip in; Dependabot moves the digest.
-FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 as builder
+FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 AS builder
 
 # Update OS packages and install build dependencies
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
-        gcc \
-        g++ \
-        make \
-        libffi-dev \
-        libssl-dev \
+        gcc=4:14.2.0-1 \
+        g++=4:14.2.0-1 \
+        make=4.4.1-2 \
+        libffi-dev=3.4.8-2 \
+        libssl-dev=3.5.7-1~deb13u3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -34,13 +34,15 @@ FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc4243
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
-        ca-certificates \
-        curl \
+        ca-certificates=20250419 \
+        curl=8.14.1-2+deb13u5 \
     && rm -rf /var/lib/apt/lists/* && \
     apt-get clean
 
-# Create non-root user for security
-RUN useradd -m -u 1000 -s /bin/bash yomama
+# Dedicated non-root user. The compose deployment has no volumes, so UID/GID
+# 1000 is just the conventional first unprivileged account.
+RUN groupadd --gid 1000 yomama \
+    && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash yomama
 
 # Set working directory
 WORKDIR /app
@@ -62,7 +64,7 @@ COPY --chown=yomama:yomama demo.py .
 COPY --chown=yomama:yomama yo_mama/ ./yo_mama/
 
 # Switch to non-root user
-USER yomama
+USER 1000:1000
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -71,7 +73,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)"
+    CMD ["python", "-c", "import sys; sys.exit(0)"]
 
 # Default command (can be overridden)
 CMD ["python", "main.py"]
