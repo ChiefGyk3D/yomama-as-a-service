@@ -4,9 +4,13 @@
 # Multi-stage build for YoMama-as-a-Service
 # The base image is pinned by digest so a rebuild is reproducible and a
 # retagged upstream image cannot slip in; Dependabot moves the digest.
-FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 as builder
+FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 AS builder
 
 # Update OS packages and install build dependencies
+# Apt versions are left unpinned on purpose: the base image is pinned by digest,
+# and Debian removes superseded package versions, so exact apt pins would break
+# the build at every security update.
+# hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
@@ -31,6 +35,10 @@ RUN pip install --no-cache-dir --upgrade "pip>=25.3" && \
 FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2
 
 # Update OS packages in final stage
+# Apt versions are left unpinned on purpose: the base image is pinned by digest,
+# and Debian removes superseded package versions, so exact apt pins would break
+# the build at every security update.
+# hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
@@ -39,8 +47,10 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/* && \
     apt-get clean
 
-# Create non-root user for security
-RUN useradd -m -u 1000 -s /bin/bash yomama
+# Dedicated non-root user. The compose deployment has no volumes, so UID/GID
+# 1000 is just the conventional first unprivileged account.
+RUN groupadd --gid 1000 yomama \
+    && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash yomama
 
 # Set working directory
 WORKDIR /app
@@ -62,7 +72,7 @@ COPY --chown=yomama:yomama demo.py .
 COPY --chown=yomama:yomama yo_mama/ ./yo_mama/
 
 # Switch to non-root user
-USER yomama
+USER 1000:1000
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -71,7 +81,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)"
+    CMD ["python", "-c", "import sys; sys.exit(0)"]
 
 # Default command (can be overridden)
 CMD ["python", "main.py"]
