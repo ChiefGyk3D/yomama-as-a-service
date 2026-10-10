@@ -1,253 +1,93 @@
 # GitHub Actions Workflows
 
-This directory contains the automated CI/CD workflows for **YoMama-as-a-Service**.
+Three thin callers. The jobs themselves live in
+[ChiefGyk3D/git-your-ship-together](https://github.com/ChiefGyk3D/git-your-ship-together),
+shared with Stream Daemon, Typo Sniper, Star Daemon and Boon Tube Daemon, so a
+pipeline fix or a new scan step lands once. Each file here says only what is
+specific to YoMama-as-a-Service: Python versions, the test command, the
+Dockerfile path, the CodeQL query filter, the Doppler project.
 
-## 📋 Workflows Overview
+| Workflow | Triggers | Calls | What it does |
+|---|---|---|---|
+| `ci.yml` | push to main/develop/copilot/**, PRs, manual | `python-ci.yml` | Lint (ruff), tests on Python 3.10–3.14, Docker build with an import check, actionlint and zizmor over these files, one `CI green` gate job for branch protection |
+| `release.yml` | push to main, `v*.*.*` tags, PRs, weekly, manual | `python-docker-release.yml` | Build and test on every PR; on main and tags publish a multi-arch (amd64 + arm64) image to `ghcr.io/chiefgyk3d/yomama-as-a-service`, signed with cosign, with a syft SBOM attached and SLSA provenance recorded; Trivy scan to the Security tab |
+| `security.yml` | push to main/develop, PRs, weekly, manual | `security.yml` | CodeQL (`security-extended,security-and-quality`, with the two clear-text alerts excluded for `yo_mama/secrets.py`), gitleaks over the full history, pip-audit, dependency review on PRs, Snyk |
 
-### 🧪 CI - Tests (`ci-tests.yml`)
-**Triggers:** Push to `main`/`develop`/`copilot/**`, PRs to `main`/`develop`, manual dispatch
+## Secrets: Doppler, not GitHub
 
-**Jobs:**
+No secret is stored in this repository's GitHub secrets. A job authenticates
+to Doppler with a short-lived token minted from its own GitHub OIDC identity
+(a Doppler Service Account Identity) and reads the `ci` config of the shared
+`ci` Doppler project, which holds only what the pipelines need:
 
-| Job | What it does |
-|-----|--------------|
-| `test` | Runs the pytest suite on Python 3.10, 3.11, 3.12, 3.13 and 3.14 (matrix, `fail-fast: false`) |
-| `lint` | On Python 3.14: Ruff lint, Bandit security scan, Safety vulnerability check, and uploads `bandit-report.json` as an artifact |
+| Name | Used by |
+|---|---|
+| `SNYK_TOKEN` | `security.yml`, Snyk |
 
-The tests mock the LLM layer, so no `GEMINI_API_KEY` or Ollama server is needed
-in CI. Only the `test` job can fail the workflow — every step in `lint` is
-`continue-on-error: true` and is advisory.
+GHCR publishing uses the job's own `GITHUB_TOKEN` and needs nothing from
+Doppler. Docker Hub is not a publish target; setting `dockerhub: true` in
+`release.yml` and adding `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` to the
+config would make it one.
 
-**Required Secrets:** None
+The one per-repository setting is the **repository variable**
+`DOPPLER_IDENTITY_ID` (Settings → Secrets and variables → Actions →
+Variables), the UUID of the identity. It is an identifier, not a secret.
 
----
+Before that is set the pipelines still run: Snyk warns and skips, everything
+else is unaffected.
 
-### 🐳 Docker Build & Publish (`docker-build-publish.yml`)
-**Triggers:** Push to `main`/`develop`, version tags (`v*.*.*`), PRs to `main`, manual dispatch
+The setup runbook, the fallback path (a Doppler Service Token as the single
+GitHub secret `DOPPLER_TOKEN`), and every input are documented in the
+git-your-ship-together README.
 
-**What it does:**
-- Builds the image from `./Dockerfile` with Buildx and a GitHub Actions cache
-- On pull requests: builds `linux/amd64` only, loads it locally, and smoke-tests
-  it with `python -c "import yo_mama"` — **no publish**
-- On pushes and tags: builds `linux/amd64,linux/arm64` and pushes to the GitHub
-  Container Registry
-- Scans the pushed image with Trivy (CRITICAL/HIGH) and uploads SARIF to the
-  GitHub Security tab
+## Verifying a published image
 
-**Image:** `ghcr.io/chiefgyk3d/yomama-as-a-service`
+```sh
+cosign verify ghcr.io/chiefgyk3d/yomama-as-a-service:latest \
+  --certificate-identity-regexp '^https://github.com/ChiefGyk3D/git-your-ship-together/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
-**Image Tags Generated:**
-- `latest` (default branch only)
-- `1.2.3`, `1.2`, `1` (from `v*.*.*` git tags)
-- `main` / `develop` (branch builds)
-- `pr-123` (pull requests)
-- `sha-<commit>`
-
-**Required Secrets:** `GITHUB_TOKEN` (auto-provided). There is no Docker Hub
-publishing — GHCR only.
-
----
-
-### 🔍 PR Dependency Review (`dependency-review.yml`)
-**Triggers:** PRs to `main`/`develop`
-
-**What it does:**
-- Runs `actions/dependency-review-action`, failing on **moderate** severity or above
-- Posts a summary comment on the pull request
-
-**Required Secrets:** None
-
----
-
-### 🛡️ Dependency Vulnerability Scan (`dependency-scan.yml`)
-**Triggers:** Every push, every PR, manual dispatch
-
-**What it does:**
-- Installs `requirements.txt` on Python 3.13
-- Runs **Safety** and **pip-audit** against the resolved dependency tree
-- Uploads both JSON reports as artifacts (30-day retention)
-
-Both scans are `continue-on-error`, so this workflow reports rather than blocks.
-
-**Required Secrets:** None
-
----
-
-### 🔐 Snyk Security Scanning (`snyk-security.yml`)
-**Triggers:** PRs to `main`/`develop`, weekly schedule (Mondays 00:00 UTC), manual dispatch
-
-**What it does:**
-- Snyk Code test (SAST) and Snyk Open Source test (SCA, `--severity-threshold=high`)
-- Validates the generated SARIF before uploading it to the GitHub Security tab
-
-**Required Secrets:** `SNYK_TOKEN` (get one at https://snyk.io). Without it the
-scan steps no-op rather than fail.
-
----
-
-### 🔎 CodeQL Analysis (`codeql-analysis.yml`)
-**Triggers:** Push to `main`/`develop`, PRs to `main`/`develop`, weekly schedule (Sundays 00:00 UTC), manual dispatch
-
-**What it does:**
-- Static analysis of the Python code using the config in `.github/codeql/codeql-config.yml`
-- Uploads results to the GitHub Security tab
-
-**Required Secrets:** None (uses `GITHUB_TOKEN`)
-
----
-
-## 🤖 Dependabot Configuration (`../dependabot.yml`)
-
-Automatically opens PRs for dependency updates, all weekly on Mondays at 09:00:
-
-- **pip** (`/` — `requirements.txt`): up to 10 open PRs, `deps` commit prefix,
-  ignores major `pytest*` bumps
-- **docker** (`/Docker`): up to 5 open PRs, `docker` commit prefix
-- **github-actions** (`/`): up to 5 open PRs
-
-> ⚠️ The docker ecosystem is configured for the directory `/Docker`, but this
-> repository's `Dockerfile` lives at the repository root. As written, Dependabot
-> will not find it and base-image updates will never be proposed.
-
----
-
-## 📊 Workflow Triggers Reference
-
-| Workflow | Push | PR | Tag | Schedule | Manual |
-|----------|------|----|-----|----------|--------|
-| CI - Tests | ✅ main/develop/copilot | ✅ main/develop | ❌ | ❌ | ✅ |
-| Docker Build & Publish | ✅ main/develop | ✅ main (build only) | ✅ `v*.*.*` | ❌ | ✅ |
-| PR Dependency Review | ❌ | ✅ main/develop | ❌ | ❌ | ❌ |
-| Dependency Vulnerability Scan | ✅ all | ✅ all | ❌ | ❌ | ✅ |
-| Snyk Security Scanning | ❌ | ✅ main/develop | ❌ | ✅ Weekly (Mon) | ✅ |
-| CodeQL Analysis | ✅ main/develop | ✅ main/develop | ❌ | ✅ Weekly (Sun) | ✅ |
-
----
-
-## 🚀 Setup Instructions
-
-### 1. Enable GitHub Actions
-Enabled by default for public repositories.
-
-### 2. Configure Optional Secrets
-
-```
-Settings → Secrets and variables → Actions → New repository secret
-
-SNYK_TOKEN: your_snyk_token   # Optional, enables snyk-security.yml
+gh attestation verify oci://ghcr.io/chiefgyk3d/yomama-as-a-service:latest --owner ChiefGyk3D
 ```
 
-No other secrets are required — publishing uses the automatically provided
-`GITHUB_TOKEN`.
+The SBOM is also attached to every run of `release.yml` as the
+`sbom.spdx.json` artifact.
 
-### 3. GitHub Container Registry Visibility
+## Image tags
 
-After the first successful publish, the package appears under the repository
-owner's **Packages**. Open it → *Package settings* → set visibility and link it
-to this repository so `docker pull` works for your intended audience.
+- `latest` (main branch only)
+- `1.2.3`, `1.2`, `1` (from `v1.2.3` tags)
+- `main`, `sha-<short>` (branch and commit)
+- `pr-123` (pull requests; built and tested, never pushed)
 
----
+## Dependabot
 
-## 📊 Workflow Status Badges
+`dependabot.yml` opens weekly PRs for Python packages, the Docker base image
+(digest-pinned in the root `Dockerfile`) and GitHub Actions, each with a
+seven-day cooldown on new releases.
 
-These are already in the main [README](../../README.md):
+## Status badges
 
 ```markdown
-[![CI - Tests](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/ci-tests.yml/badge.svg)](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/ci-tests.yml)
-[![Docker Build & Publish](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/docker-build-publish.yml/badge.svg)](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/docker-build-publish.yml)
-[![CodeQL](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/codeql-analysis.yml)
+[![CI](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/ci.yml/badge.svg)](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/ci.yml)
+[![Release](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/release.yml/badge.svg)](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/release.yml)
+[![Security](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/security.yml/badge.svg)](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/security.yml)
 ```
 
----
+## What changed in the migration
 
-## 🔧 Reproducing Workflows Locally
-
-### Tests and lint
-
-```bash
-pip install -r requirements.txt
-pytest tests/ -v --tb=short
-
-pip install ruff bandit[toml] safety
-ruff check yo_mama/ tests/ main.py demo.py
-bandit -r yo_mama/
-safety check
-```
-
-### Docker build and scan
-
-```bash
-# Build the image
-docker build -t yomama-as-a-service:test .
-
-# Same smoke test CI runs on pull requests
-docker run --rm yomama-as-a-service:test python -c "import yo_mama; print('Import successful')"
-
-# Scan it
-trivy image --severity CRITICAL,HIGH yomama-as-a-service:test
-```
-
-### Using `act` (GitHub Actions local runner)
-
-```bash
-# Install act
-brew install act  # macOS
-# or
-curl https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
-
-# Run a specific workflow
-act -W .github/workflows/ci-tests.yml
-```
-
----
-
-## 🛡️ Security Coverage
-
-| Tool | Scope | Where results land |
-|------|-------|--------------------|
-| CodeQL | Python source (SAST) | Security tab |
-| Snyk Code | Python source (SAST) | Security tab |
-| Snyk Open Source | Dependencies (SCA) | Security tab |
-| Trivy | Published container image | Security tab |
-| Bandit | Python source | `ci-tests` artifact |
-| Safety | Dependencies | `ci-tests` log + `dependency-scan` artifact |
-| pip-audit | Dependencies | `dependency-scan` artifact |
-| Dependency Review | Dependency changes in a PR | PR comment (blocking at moderate+) |
-| Dependabot | Dependency updates | Automated PRs |
-
-Overlap is deliberate — different databases catch different advisories, and
-only Dependency Review is allowed to block a merge.
-
----
-
-## 🐛 Troubleshooting
-
-### Tests fail in CI but pass locally
-- CI runs Python 3.10 through 3.14 — try the version that failed
-- Check you aren't relying on a `.env` file; CI has none
-
-### Workflow fails on pip install
-- Check `requirements.txt` for version conflicts
-- Confirm the pinned versions exist on PyPI for every Python in the matrix
-
-### Docker build fails
-- The Dockerfile is at the repository root (`./Dockerfile`), not in a subdirectory
-- Verify every path in a `COPY` line exists and isn't excluded by `.dockerignore`
-
-### Image published but `docker pull` says "not found"
-- The package is likely still private — see *GitHub Container Registry Visibility* above
-- Image names are lowercased; use `ghcr.io/chiefgyk3d/yomama-as-a-service`
-
-### Snyk steps are skipped or empty
-- `SNYK_TOKEN` is missing; the steps are intentionally non-fatal without it
-
----
-
-## 📚 Resources
-
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [Docker Build Push Action](https://github.com/docker/build-push-action)
-- [CodeQL Documentation](https://codeql.github.com/docs/)
-- [Dependabot Documentation](https://docs.github.com/en/code-security/dependabot)
-- [Trivy Scanner](https://aquasecurity.github.io/trivy/)
-- [Snyk Documentation](https://docs.snyk.io/)
+- `ci-tests.yml`, `docker-build-publish.yml`, `codeql-analysis.yml`,
+  `dependency-review.yml`, `dependency-scan.yml` and `snyk-security.yml` were
+  replaced by the three callers above. `.github/codeql/codeql-config.yml`
+  moved inline into `security.yml` as `codeql-config`.
+- Bandit and `safety check` were dropped: `safety check` is deprecated
+  upstream and needs an account, and both ran as advisory-only. CodeQL and
+  ruff's `S` rules (`ruff.toml`) cover SAST and pip-audit covers the advisory
+  database.
+- pip-audit gates. Ruff lint stays advisory (`lint-continue-on-error`) until
+  the tree is clean; delete that line to make it gate.
+- `develop` no longer triggers a container build; `release.yml` publishes
+  from `main` and version tags only, and runs weekly so base-image fixes
+  reach `latest` between commits.
+- Images are now signed, carry an SBOM and provenance, and a publishing
+  build never reads the GitHub Actions cache.

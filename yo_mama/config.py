@@ -11,9 +11,9 @@ Priority order:
 5. Default values - LAST RESORT
 """
 
-import os
 import logging
-from typing import Optional
+import os
+
 from dotenv import load_dotenv
 
 # Import our comprehensive secrets manager
@@ -46,7 +46,7 @@ class Config:
         elif self._secrets_manager == 'vault':
             logger.info("HashiCorp Vault enabled")
     
-    def get_secret(self, key: str, default: Optional[str] = None) -> Optional[str]:
+    def get_secret(self, key: str, default: str | None = None) -> str | None:
         """
         Get a secret value with comprehensive priority system.
         
@@ -66,7 +66,7 @@ class Config:
         """
         return get_secret(key, default=default)
     
-    def get_config(self, key: str, default: Optional[str] = None) -> Optional[str]:
+    def get_config(self, key: str, default: str | None = None) -> str | None:
         """
         Alias for get_secret for configuration values.
         
@@ -131,7 +131,7 @@ class Config:
         return [name.strip().lower() for name in raw.split(',') if name.strip()]
 
     @property
-    def gemini_api_key(self) -> Optional[str]:
+    def gemini_api_key(self) -> str | None:
         """Get Google Gemini API key."""
         return self.get_secret('GEMINI_API_KEY')
     

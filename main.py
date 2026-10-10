@@ -8,10 +8,10 @@ Generate hilarious Yo Mama jokes with customizable flavors, meanness, and nerdin
 Can also run as Discord or Matrix bot.
 """
 
-import sys
-import logging
 import argparse
-from typing import Optional
+import logging
+import sys
+
 from yo_mama.config import get_config
 from yo_mama.yo_mama_generator import YoMamaGenerator
 
@@ -63,7 +63,7 @@ def interactive_mode(generator: YoMamaGenerator, config):
     current_target = None
     
     def show_settings():
-        print(f"\n⚙️  Current Settings:")
+        print("\n⚙️  Current Settings:")
         print(f"   Flavor: {current_flavor}")
         print(f"   Meanness: {current_meanness}/10")
         print(f"   Nerdiness: {current_nerdiness}/10")
@@ -110,7 +110,7 @@ def interactive_mode(generator: YoMamaGenerator, config):
                     current_flavor = new_flavor.lower()
                     print(f"✓ Flavor set to: {current_flavor}")
                 else:
-                    print(f"❌ Unknown flavor. Use 'flavors' to see options.")
+                    print("❌ Unknown flavor. Use 'flavors' to see options.")
             
             elif user_input.startswith('m '):
                 # Change meanness
@@ -171,7 +171,7 @@ def interactive_mode(generator: YoMamaGenerator, config):
         except KeyboardInterrupt:
             print("\n\n👋 Interrupted. Peace out!\n")
             break
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # keep the interactive loop alive; error is printed
             print(f"\n❌ Error: {e}\n")
 
 
@@ -286,6 +286,7 @@ Examples:
     if args.discord and args.matrix:
         # Run both bots concurrently
         import threading
+
         from yo_mama.platforms import run_discord_bot, run_matrix_bot
         
         print("\n🤖 Starting Discord and Matrix bots...\n")
@@ -326,7 +327,7 @@ Examples:
             api_key=config.gemini_api_key,
             model_name=config.gemini_model
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # CLI error boundary; error is printed, exit 1
         print(f"\n❌ Failed to initialize generator: {e}\n")
         return 1
     

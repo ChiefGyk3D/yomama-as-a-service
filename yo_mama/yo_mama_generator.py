@@ -13,7 +13,7 @@ them via LLM_FALLBACK_PROVIDER — just like the announcement daemons.
 import logging
 import os
 import random
-from typing import Optional
+from typing import ClassVar
 
 from hypeman_social.llm import GENERIC_PROFILE, LLMManager
 
@@ -34,7 +34,7 @@ class YoMamaGenerator:
     """
     
     # Available joke flavors
-    FLAVORS = [
+    FLAVORS: ClassVar[list[str]] = [
         'classic',        # Traditional Yo Mama jokes (so fat, so ugly, etc.)
         'cybersecurity',
         'tech',
@@ -50,7 +50,7 @@ class YoMamaGenerator:
         'thegame'         # Hidden Easter egg - You just lost The Game
     ]
     
-    def __init__(self, api_key: Optional[str] = None,
+    def __init__(self, api_key: str | None = None,
                  model_name: str = "gemini-2.5-flash-lite"):
         """
         Initialize the Yo Mama joke generator.
@@ -107,10 +107,10 @@ class YoMamaGenerator:
     
     def generate_joke(
         self,
-        flavor: Optional[str] = None,
+        flavor: str | None = None,
         meanness: int = 5,
         nerdiness: int = 5,
-        target_name: Optional[str] = None
+        target_name: str | None = None
     ) -> str:
         """
         Generate a Yo Mama joke with specified parameters.
@@ -175,7 +175,7 @@ class YoMamaGenerator:
         flavor: str,
         meanness: int,
         nerdiness: int,
-        target_name: Optional[str]
+        target_name: str | None
     ) -> str:
         """Build the prompt for Gemini based on parameters."""
         
@@ -276,10 +276,10 @@ Generate ONE joke now, matching all specifications:"""
     def generate_batch(
         self,
         count: int = 5,
-        flavor: Optional[str] = None,
+        flavor: str | None = None,
         meanness: int = 5,
         nerdiness: int = 5,
-        target_name: Optional[str] = None
+        target_name: str | None = None
     ) -> list[str]:
         """
         Generate multiple jokes at once.
@@ -304,7 +304,7 @@ Generate ONE joke now, matching all specifications:"""
                     target_name=target_name
                 )
                 jokes.append(joke)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  # one bad joke must not sink the batch; error is logged
                 logger.error(f"Failed to generate joke {i+1}/{count}: {e}")
         
         return jokes

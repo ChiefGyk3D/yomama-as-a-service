@@ -1,0 +1,10 @@
+# Snyk policy. Snyk Code does not honour per-rule `ignore:` entries from this
+# file (measured 2026-10-03: the finding stayed open with "Ignored issues: 0"),
+# so a false positive is handled by excluding its file from code analysis.
+# Each exclusion names one file and says why; nothing is excluded repository-wide.
+# Review by 2027-04-01.
+version: v1.25.0
+exclude:
+  code:
+    # 'test_key_12345' is a placeholder assigned to a generator built around a mocked engine; no network call is made and it is not a credential (python/HardcodedNonCryptoSecret/test, line 22).
+    - tests/test_genai_integration.py

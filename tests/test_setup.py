@@ -5,35 +5,41 @@
 Test script to verify Yo Mama Bot configuration and basic functionality.
 """
 
-import sys
 import os
+import sys
+
 
 def test_imports():
     """Test that all required modules can be imported."""
     print("🔍 Testing imports...")
     
-    from google import genai
+    from google import genai  # noqa: F401  # the import is the test
     print("   ✓ google-genai")
     
-    from dopplersdk import DopplerSDK
+    from dopplersdk import DopplerSDK  # noqa: F401  # the import is the test
     print("   ✓ dopplersdk")
     
-    from dotenv import load_dotenv
+    from dotenv import load_dotenv  # noqa: F401  # the import is the test
     print("   ✓ python-dotenv")
     
-    import discord
+    import discord  # noqa: F401  # the import is the test
     print("   ✓ discord.py")
     
-    import nio
+    import nio  # noqa: F401  # the import is the test
     print("   ✓ matrix-nio")
     
-    from yo_mama.config import get_config
+    from yo_mama.config import get_config  # noqa: F401  # the import is the test
     print("   ✓ config module")
     
-    from yo_mama.yo_mama_generator import YoMamaGenerator
+    from yo_mama.yo_mama_generator import (
+        YoMamaGenerator,  # noqa: F401  # the import is the test
+    )
     print("   ✓ yo_mama_generator module")
     
-    from yo_mama.platforms import DiscordBot, MatrixBot
+    from yo_mama.platforms import (  # noqa: F401  # the import is the test
+        DiscordBot,
+        MatrixBot,
+    )
     print("   ✓ platform modules")
     
     assert True  # All imports successful
@@ -62,7 +68,7 @@ def test_config():
         print(f"   ⚠️  Missing configuration: {', '.join(missing)}")
     
     # Show current settings
-    print(f"\n   Current settings:")
+    print("\n   Current settings:")
     print(f"      Model: {config.gemini_model}")
     print(f"      Default Flavor: {config.default_flavor}")
     print(f"      Default Meanness: {config.default_meanness}/10")
@@ -148,7 +154,7 @@ def main():
     # Test imports
     try:
         test_imports()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # interactive check runner; error is printed
         print(f"\n❌ Import test failed: {e}")
         print("   Run: pip install -r requirements.txt")
         all_passed = False
@@ -156,7 +162,7 @@ def main():
     # Test config
     try:
         test_config()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # interactive check runner; error is printed
         print(f"\n❌ Configuration test failed: {e}")
         print("   Edit .env and add your GEMINI_API_KEY")
         all_passed = False
@@ -164,7 +170,7 @@ def main():
     # Test generator
     try:
         test_generator()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # interactive check runner; error is printed
         print(f"\n❌ Generator test failed: {e}")
         all_passed = False
     
@@ -179,7 +185,7 @@ def main():
         if response == 'y':
             try:
                 test_joke_generation()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  # interactive check runner; error is printed
                 print(f"\n⚠️  Generation test failed: {e}")
                 import traceback
                 traceback.print_exc()

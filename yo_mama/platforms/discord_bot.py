@@ -7,10 +7,11 @@ Supports slash commands, text commands, and webhook posting.
 """
 
 import logging
+
 import discord
 from discord import app_commands
 from discord.ext import commands
-from typing import Optional
+
 from ..config import get_config
 from ..yo_mama_generator import YoMamaGenerator
 
@@ -68,7 +69,7 @@ class DiscordBot:
             try:
                 synced = await self.bot.tree.sync()
                 logger.info(f'Synced {len(synced)} slash commands')
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  # keep the bot up if sync fails; error is logged
                 logger.error(f'Failed to sync commands: {e}')
         
         @self.bot.event
@@ -80,7 +81,7 @@ class DiscordBot:
                 await ctx.send(f'❌ Missing argument: {error.param.name}')
             else:
                 logger.error(f'Command error: {error}')
-                await ctx.send(f'❌ An error occurred: {str(error)}')
+                await ctx.send(f'❌ An error occurred: {error!s}')
     
     def _setup_commands(self):
         """Setup bot commands."""
@@ -111,11 +112,11 @@ class DiscordBot:
         ])
         async def joke_slash(
             interaction: discord.Interaction,
-            flavor: Optional[str] = None,
-            meanness: Optional[int] = None,
-            nerdiness: Optional[int] = None,
-            target: Optional[str] = None,
-            user: Optional[discord.User] = None
+            flavor: str | None = None,
+            meanness: int | None = None,
+            nerdiness: int | None = None,
+            target: str | None = None,
+            user: discord.User | None = None
         ):
             await interaction.response.defer(thinking=True)
             
@@ -170,9 +171,9 @@ class DiscordBot:
                 
                 await interaction.followup.send(embed=embed)
                 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  # per-command handler; error is logged and reported
                 logger.error(f"Error generating joke: {e}")
-                await interaction.followup.send(f"❌ Failed to generate joke: {str(e)}")
+                await interaction.followup.send(f"❌ Failed to generate joke: {e!s}")
         
         # Slash command: /random
         @self.bot.tree.command(name="random", description="Generate a random Yo Mama joke")
@@ -190,9 +191,9 @@ class DiscordBot:
                 
                 await interaction.followup.send(embed=embed)
                 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  # per-command handler; error is logged and reported
                 logger.error(f"Error generating random joke: {e}")
-                await interaction.followup.send(f"❌ Failed to generate joke: {str(e)}")
+                await interaction.followup.send(f"❌ Failed to generate joke: {e!s}")
         
         # Slash command: /batch
         @self.bot.tree.command(name="batch", description="Generate multiple Yo Mama jokes")
@@ -220,9 +221,9 @@ class DiscordBot:
         async def batch_slash(
             interaction: discord.Interaction,
             count: int = 3,
-            flavor: Optional[str] = None,
-            meanness: Optional[int] = None,
-            nerdiness: Optional[int] = None
+            flavor: str | None = None,
+            meanness: int | None = None,
+            nerdiness: int | None = None
         ):
             await interaction.response.defer(thinking=True)
             
@@ -263,9 +264,9 @@ class DiscordBot:
                 
                 await interaction.followup.send(embed=embed)
                 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  # per-command handler; error is logged and reported
                 logger.error(f"Error generating batch: {e}")
-                await interaction.followup.send(f"❌ Failed to generate jokes: {str(e)}")
+                await interaction.followup.send(f"❌ Failed to generate jokes: {e!s}")
         
         # Slash command: /flavors
         @self.bot.tree.command(name="flavors", description="List available joke flavors")
@@ -322,7 +323,6 @@ class DiscordBot:
             )
             
             # Flavors section
-            flavors = YoMamaGenerator.list_flavors()
             flavor_list = [
                 "🎭 `classic` - Traditional Yo Mama jokes",
                 "🔒 `cybersecurity` - Hacking & security",
@@ -362,7 +362,7 @@ class DiscordBot:
         
         # Text command: !joke (for backwards compatibility)
         @self.bot.command(name='joke')
-        async def joke_text(ctx, flavor: Optional[str] = None, meanness: int = 5, nerdiness: int = 5):
+        async def joke_text(ctx, flavor: str | None = None, meanness: int = 5, nerdiness: int = 5):
             """Generate a Yo Mama joke (text command)"""
             async with ctx.typing():
                 try:
@@ -388,8 +388,9 @@ class DiscordBot:
                             nerdiness=nerdiness
                         )
                         await ctx.send(f"🎤 {joke}")
-                except Exception as e:
-                    await ctx.send(f"❌ Error: {str(e)}")
+                except Exception as e:  # noqa: BLE001  # per-command handler; error is logged and reported
+                    logger.error(f"Error generating joke: {e}")
+                    await ctx.send(f"❌ Error: {e!s}")
         
         # Text command: !random
         @self.bot.command(name='random')
@@ -399,8 +400,9 @@ class DiscordBot:
                 try:
                     joke = self.generator.random_joke()
                     await ctx.send(f"🎲 {joke}")
-                except Exception as e:
-                    await ctx.send(f"❌ Error: {str(e)}")
+                except Exception as e:  # noqa: BLE001  # per-command handler; error is logged and reported
+                    logger.error(f"Error generating random joke: {e}")
+                    await ctx.send(f"❌ Error: {e!s}")
         
         # Text command: !thegame (Easter egg)
         @self.bot.command(name='thegame')
@@ -420,8 +422,9 @@ class DiscordBot:
                     )
                     embed.set_footer(text="You just lost The Game. Sorry! 😈")
                     await ctx.send(embed=embed)
-                except Exception as e:
-                    await ctx.send(f"❌ Error: {str(e)}")
+                except Exception as e:  # noqa: BLE001  # per-command handler; error is logged and reported
+                    logger.error(f"Error generating thegame joke: {e}")
+                    await ctx.send(f"❌ Error: {e!s}")
         
         # Text command: help
         @self.bot.command(name='help')
@@ -485,7 +488,7 @@ class DiscordBot:
                 inline=False
             )
             
-            embed.set_footer(text=f"Powered by Google Gemini | Slash commands also available: /help")
+            embed.set_footer(text="Powered by Google Gemini | Slash commands also available: /help")
             
             await ctx.send(embed=embed)
         
@@ -494,7 +497,7 @@ class DiscordBot:
         async def flavors_text(ctx):
             """List available flavors (text command)"""
             flavors = YoMamaGenerator.list_flavors()
-            await ctx.send(f"📋 Available flavors:\n" + ", ".join(flavors))
+            await ctx.send("📋 Available flavors:\n" + ", ".join(flavors))
     
     def run(self):
         """Run the Discord bot."""
@@ -507,7 +510,7 @@ class DiscordBot:
         logger.info("Starting Discord bot...")
         self.bot.run(token)
     
-    async def post_to_webhook(self, webhook_url: str, joke: str, settings: Optional[dict] = None):
+    async def post_to_webhook(self, webhook_url: str, joke: str, settings: dict | None = None):
         """
         Post a joke to a Discord webhook.
         
@@ -561,7 +564,7 @@ def run_discord_bot():
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
         sys.exit(0)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # process error boundary; error is logged, exit 1
         logger.error(f"Bot crashed: {e}")
         sys.exit(1)
 

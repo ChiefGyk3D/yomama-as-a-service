@@ -6,9 +6,9 @@
 
 ## *Deploying Insults at Scale* 🚀
 
-[![CI - Tests](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/ci-tests.yml/badge.svg)](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/ci-tests.yml)
-[![Docker Build & Publish](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/docker-build-publish.yml/badge.svg)](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/docker-build-publish.yml)
-[![CodeQL](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/codeql-analysis.yml)
+[![CI - Tests](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/ci.yml/badge.svg)](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/ci.yml)
+[![Docker Build & Publish](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/release.yml/badge.svg)](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/release.yml)
+[![CodeQL](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/security.yml/badge.svg)](https://github.com/ChiefGyk3D/yomama-as-a-service/actions/workflows/security.yml)
 [![License: MPL-2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](LICENSE)
 
 An AI-powered Yo Mama joke generator that crafts customized roasts using Google Gemini **or a local Ollama server**. Because your infrastructure isn't the only thing that needs load balancing—your insults do too. Generate jokes in various flavors (cybersecurity, tech, Linux, gaming, etc.) with adjustable meanness and nerdiness levels.
@@ -84,6 +84,10 @@ See [DOCKER.md](DOCKER.md) for complete Docker documentation.
 ```bash
 pip install -r requirements.txt
 ```
+
+`requirements.txt` is a generated lock with every dependency pinned to a
+version and its hashes; pip verifies each download against it. The direct
+dependencies live in `requirements.in`; see [Dependency lock](#dependency-lock).
 
 #### 2. Configure Secrets
 
@@ -350,7 +354,8 @@ The bot uses a comprehensive priority system for secrets:
 yomama-as-a-service/
 ├── main.py                        # Main entry point (CLI/Discord/Matrix)
 ├── demo.py                        # API usage demonstrations
-├── requirements.txt               # Python dependencies
+├── requirements.in                # Direct Python dependencies
+├── requirements.txt               # Generated lock: every dependency pinned with hashes
 ├── .env.example                   # Example configuration
 ├── setup.sh                       # Automated setup (venv + deps + .env)
 ├── run.sh                         # Quick run script
@@ -414,6 +419,18 @@ Here are some examples of what the bot deploys:
 *Note: All jokes are AI-generated and deployed with zero downtime.*
 
 ## 🛠️ Development
+
+### Dependency lock
+
+`requirements.in` lists the direct dependencies. `requirements.txt` is
+generated from it and pins every dependency, transitive ones included, to a
+version and its SHA-256 hashes. pip enters hash-checking mode by itself when it
+reads the file, so `pip install -r requirements.txt` verifies every download,
+and CI and the Docker image install with `--require-hashes`: a package
+re-uploaded under the same version fails to install instead of shipping. To
+add or bump a dependency, edit `requirements.in` and regenerate the lock with
+the command in its header; never edit `requirements.txt` by hand. Dependabot
+regenerates it for version bumps.
 
 ### Running Tests
 
