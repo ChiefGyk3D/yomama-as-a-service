@@ -6,8 +6,9 @@ Complete guide for setting up and running **YoMama-as-a-Service** on Discord and
 
 ## 📋 Prerequisites
 
-- Python 3.10+
-- Google Gemini API key
+- Python 3.10+ (CI tests 3.10 through 3.14)
+- An LLM backend: a Google Gemini API key, **or** an Ollama server you control
+  (set `LLM_PROVIDER=ollama`; see [README](README.md#using-a-local-ollama-server-instead))
 - Discord Developer account (for Discord bot)
 - Matrix account (for Matrix bot)
 
@@ -90,6 +91,9 @@ python main.py --discord
 !flavors
 !help
 ```
+
+The text prefix comes from `DISCORD_PREFIX` (built-in default `!`; the shipped
+`.env.example` sets `$`). Slash commands are unaffected by it.
 
 **Examples:**
 ```
@@ -198,7 +202,7 @@ All commands use the prefix `!` (configurable):
 ```
 !joke [flavor] [meanness] [nerdiness]
 !random
-!batch [count] [flavor]
+!batch [count] [flavor]          # count 1-10, default 3
 !flavors
 !help
 ```
@@ -250,6 +254,19 @@ All commands use the prefix `!` (configurable):
 - Check bot has permission to read messages in the room
 - Look for error messages in console
 
+### LLM Issues
+
+**Every joke is the same canned one-liner:**
+- That's the built-in fallback — generation failed. Check the logs for the
+  provider error.
+- Gemini: verify `GEMINI_API_KEY` is valid and not out of quota.
+- Ollama: confirm the server is reachable at `LLM_OLLAMA_HOST:LLM_OLLAMA_PORT`
+  and that `LLM_OLLAMA_MODEL` is pulled.
+
+**Rate limited:**
+- The bot detects quota/429 errors and replies with a themed "slow down" joke.
+  Wait a minute, or set `LLM_FALLBACK_PROVIDER` so it fails over instead.
+
 ### General Issues
 
 **Missing dependencies:**
@@ -260,14 +277,14 @@ pip install -r requirements.txt
 **Import errors:**
 ```bash
 # Make sure you're in the project root
-cd /path/to/Yo_Mama
+cd /path/to/yomama-as-a-service
 python main.py --discord
 ```
 
 **Configuration errors:**
 ```bash
 # Run the test script
-python test_setup.py
+python tests/test_setup.py
 ```
 
 ---
@@ -296,6 +313,7 @@ python test_setup.py
 
 2. **Response times:**
    - Gemini API calls take 2-5 seconds
+   - A local Ollama server depends on your hardware and model size
    - Bot sends "thinking" indicator while generating
 
 3. **Resource usage:**
@@ -323,7 +341,15 @@ tmux new -s yo_mama_discord
 
 **Systemd service (Linux):**
 
-Create `/etc/systemd/system/yo-mama-discord.service`:
+The quickest route is the bundled installer, which writes the unit file for you
+(`yomama-discord`, `yomama-matrix`, or `yomama-both`) and supports both venv and
+Docker deployments — see [scripts/README.md](scripts/README.md):
+
+```bash
+sudo ./scripts/install-yomama.sh
+```
+
+To write the unit by hand instead, create `/etc/systemd/system/yo-mama-discord.service`:
 
 ```ini
 [Unit]
@@ -333,9 +359,9 @@ After=network.target
 [Service]
 Type=simple
 User=your_username
-WorkingDirectory=/path/to/Yo_Mama
-Environment="PATH=/path/to/Yo_Mama/venv/bin"
-ExecStart=/path/to/Yo_Mama/venv/bin/python main.py --discord
+WorkingDirectory=/path/to/yomama-as-a-service
+Environment="PATH=/path/to/yomama-as-a-service/venv/bin"
+ExecStart=/path/to/yomama-as-a-service/venv/bin/python main.py --discord
 Restart=always
 RestartSec=10
 
@@ -390,7 +416,13 @@ DEFAULT_NERDINESS=8
 
 **Change AI model:**
 ```env
-GEMINI_MODEL=gemini-1.5-pro
+# Gemini (cloud)
+GEMINI_MODEL=gemini-2.5-pro
+
+# Or switch to a self-hosted Ollama server
+LLM_PROVIDER=ollama
+LLM_OLLAMA_HOST=http://your-ollama-box
+LLM_OLLAMA_MODEL=gemma3:4b
 ```
 
 ---
@@ -399,7 +431,7 @@ GEMINI_MODEL=gemini-1.5-pro
 
 If you encounter issues:
 
-1. Run the test script: `python test_setup.py`
+1. Run the test script: `python tests/test_setup.py`
 2. Check the logs for error messages
 3. Verify all configuration in `.env`
 4. Ensure all dependencies are installed

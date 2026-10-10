@@ -21,6 +21,11 @@ Helps you configure API keys and bot credentials across multiple secrets managem
 - ✅ Loads existing .env values as defaults
 - ✅ Environment-aware (dev/staging/production)
 
+> After running it, check the generated `.env` against
+> [`.env.example`](../.env.example) — the wizard is shared with sibling projects
+> and may not prompt for every key this bot reads (for example the `LLM_*`
+> Ollama settings).
+
 ---
 
 ### install-yomama.sh
@@ -36,10 +41,13 @@ sudo ./scripts/install-yomama.sh
 **Features:**
 - ✅ Supports both Python and Docker deployments
 - ✅ Creates Python virtual environment (Python mode)
-- ✅ Builds and manages Docker containers (Docker mode)
+- ✅ Pulls `ghcr.io/chiefgyk3d/yomama-as-a-service:latest`, or builds locally (Docker mode)
 - ✅ Configures automatic restart on failure
 - ✅ Sets up proper permissions and security
 - ✅ Loads configuration from .env file
+
+**Service name:** you choose the platform during installation, and the unit is
+named after it — `yomama-discord`, `yomama-matrix`, or `yomama-both`.
 
 ---
 
@@ -109,12 +117,13 @@ Helps set up Matrix bot credentials and room configuration.
    sudo ./scripts/install-yomama.sh
    ```
 
-3. **Manage service:**
+3. **Manage service** (substitute the service you installed — `yomama-discord`,
+   `yomama-matrix`, or `yomama-both`):
    ```bash
-   sudo systemctl status yomama-bot
-   sudo systemctl stop yomama-bot
-   sudo systemctl start yomama-bot
-   sudo journalctl -u yomama-bot -f
+   sudo systemctl status yomama-discord
+   sudo systemctl stop yomama-discord
+   sudo systemctl start yomama-discord
+   sudo journalctl -u yomama-discord -f
    ```
 
 **To uninstall:**
