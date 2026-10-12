@@ -4,9 +4,11 @@
 Test configuration loading and validation.
 """
 
+import os
 import unittest
+from unittest.mock import patch
 
-from yo_mama.config import get_config
+from yo_mama.config import Config, get_config
 
 
 class TestConfig(unittest.TestCase):
@@ -36,6 +38,31 @@ class TestConfig(unittest.TestCase):
         self.assertLessEqual(config.default_meanness, 10)
         self.assertGreaterEqual(config.default_nerdiness, 1)
         self.assertLessEqual(config.default_nerdiness, 10)
+
+    def test_random_reply_defaults(self):
+        """Drive-by jokes default to a low chance with a per-channel cooldown."""
+        env = {k: v for k, v in os.environ.items() if not k.startswith('DISCORD_RANDOM_REPLY')}
+        with patch.dict(os.environ, env, clear=True):
+            config = Config()
+            self.assertAlmostEqual(config.discord_random_reply_chance, 0.02)
+            self.assertEqual(config.discord_random_reply_cooldown, 600)
+            self.assertEqual(config.discord_random_reply_channels, [])
+
+    def test_random_reply_from_env(self):
+        with patch.dict(os.environ, {
+            'DISCORD_RANDOM_REPLY_CHANCE': '0.1',
+            'DISCORD_RANDOM_REPLY_COOLDOWN': '30',
+            'DISCORD_RANDOM_REPLY_CHANNELS': '123, 456,,abc',
+        }):
+            config = Config()
+            self.assertAlmostEqual(config.discord_random_reply_chance, 0.1)
+            self.assertEqual(config.discord_random_reply_cooldown, 30)
+            self.assertEqual(config.discord_random_reply_channels, [123, 456])
+
+    def test_get_float_rejects_garbage(self):
+        with patch.dict(os.environ, {'DISCORD_RANDOM_REPLY_CHANCE': 'lots'}):
+            config = Config()
+            self.assertAlmostEqual(config.discord_random_reply_chance, 0.02)
 
 
 if __name__ == '__main__':

@@ -160,6 +160,19 @@ python main.py --discord
 - `!flavors` - List available flavors
 - `!help` - Show help message
 
+**Drive-by Jokes** (on by default, 2% of messages):
+Every so often the bot takes something a human just said and turns it into a
+Yo Mama joke, replying right to their message:
+
+> **you:** this link is broken
+> **Yo Mama Bot:** 🎤 Yo mama so broken, even this link works better than her.
+
+Only actual people trigger it. Bots, webhooks, system messages, DMs, commands,
+and "lol"-length messages are ignored, and each channel gets a cooldown
+(default 10 minutes) after a drive-by so nobody gets roasted twice in a row.
+Tune it with `DISCORD_RANDOM_REPLY_CHANCE` (set `0` to turn it off),
+`DISCORD_RANDOM_REPLY_COOLDOWN`, and `DISCORD_RANDOM_REPLY_CHANNELS`.
+
 ### Matrix Bot
 
 Run the bot:
@@ -335,6 +348,9 @@ The bot uses a comprehensive priority system for secrets:
 | `DISCORD_BOT_TOKEN` | Bot token from Discord Developer Portal | ✅ Yes |
 | `DISCORD_PREFIX` | Text command prefix | No (default: `!`) |
 | `DISCORD_WEBHOOK_URL` | Optional webhook URL | No |
+| `DISCORD_RANDOM_REPLY_CHANCE` | Chance (0-1) a human message gets a drive-by Yo Mama reply; `0` disables | No (default: `0.02`) |
+| `DISCORD_RANDOM_REPLY_COOLDOWN` | Seconds a channel stays quiet after a drive-by | No (default: `600`) |
+| `DISCORD_RANDOM_REPLY_CHANNELS` | Comma-separated channel IDs to restrict drive-bys to | No (default: all channels) |
 
 **Matrix Bot:**
 

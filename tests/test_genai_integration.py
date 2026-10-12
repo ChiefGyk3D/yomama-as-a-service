@@ -78,6 +78,62 @@ class TestLLMIntegration(unittest.TestCase):
         self.assertIsNotNone(joke)
         generator.engine.generate.assert_called_once()
 
+
+class TestRiffOnMessage(unittest.TestCase):
+    """Turning what someone just said into a Yo Mama joke."""
+
+    def test_message_is_quoted_in_prompt(self):
+        generator = _make_generator(response='Yo mama so broken, even this link works better than her.')
+        joke = generator.riff_on_message("this link is broken", meanness=5, nerdiness=5)
+
+        generator.engine.generate.assert_called_once()
+        prompt = generator.engine.generate.call_args[0][0]
+        self.assertIn('"this link is broken"', prompt)
+        self.assertIn('Yo mama so', prompt)
+        self.assertEqual(joke, 'Yo mama so broken, even this link works better than her.')
+
+    def test_levels_are_in_prompt_and_clamped(self):
+        generator = _make_generator()
+        generator.riff_on_message("this link is broken", meanness=99, nerdiness=-3)
+        prompt = generator.engine.generate.call_args[0][0]
+        self.assertIn('MEANNESS LEVEL: 11/10', prompt)
+        self.assertIn('NERDINESS LEVEL: 1/10', prompt)
+
+    def test_output_is_cleaned(self):
+        generator = _make_generator(response='  "Yo mama so broken, it shows."  \n')
+        self.assertEqual(generator.riff_on_message("this link is broken"),
+                         'Yo mama so broken, it shows.')
+
+    def test_long_messages_are_truncated(self):
+        generator = _make_generator()
+        generator.riff_on_message("word " * 500)
+        prompt = generator.engine.generate.call_args[0][0]
+        self.assertLess(prompt.count('word'), 100)
+
+    def test_whitespace_is_collapsed_and_quotes_neutralised(self):
+        generator = _make_generator()
+        generator.riff_on_message('this   link\n\nis "broken"')
+        prompt = generator.engine.generate.call_args[0][0]
+        self.assertIn("\"this link is 'broken'\"", prompt)
+
+    def test_empty_message_does_not_call_model(self):
+        generator = _make_generator()
+        self.assertIsNone(generator.riff_on_message("   "))
+        generator.engine.generate.assert_not_called()
+
+    def test_engine_failure_stays_silent(self):
+        """Unlike generate_joke, no canned fallback: an uninvited reply must be on-topic."""
+        generator = _make_generator(response=None)
+        self.assertIsNone(generator.riff_on_message("this link is broken"))
+
+    def test_rate_limit_stays_silent(self):
+        generator = _make_generator(response=None)
+        generator.engine.status.return_value = {
+            'primary': {'last_error': 'ClientError: 429 RESOURCE_EXHAUSTED'},
+            'fallbacks': [],
+        }
+        self.assertIsNone(generator.riff_on_message("this link is broken"))
+
     @unittest.skipIf(not os.getenv('GEMINI_API_KEY'), "Requires GEMINI_API_KEY")
     def test_real_api_call(self):
         """Actual API call with real credentials (integration test)."""
