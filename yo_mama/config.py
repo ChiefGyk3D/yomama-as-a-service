@@ -117,6 +117,27 @@ class Config:
             logger.warning(f"Invalid integer value for {key}")
             return default
     
+    def get_float(self, key: str, default: float = 0.0) -> float:
+        """
+        Get a floating-point configuration value.
+        
+        Args:
+            key: Config key name
+            default: Default value if not found
+            
+        Returns:
+            Float value
+        """
+        value = self.get_secret(key)
+        if value is None:
+            return default
+        
+        try:
+            return float(value)
+        except ValueError:
+            logger.warning(f"Invalid float value for {key}")
+            return default
+    
     # Specific configuration getters
 
     @property
@@ -160,6 +181,34 @@ class Config:
         """Get logging level."""
         return self.get_secret('LOG_LEVEL', 'INFO')
     
+    # Discord drive-by replies: every so often the bot turns a random human
+    # message into a Yo Mama joke. See yo_mama/random_riff.py.
+
+    @property
+    def discord_random_reply_chance(self) -> float:
+        """Probability (0-1) that a human message gets a Yo Mama riff. 0 disables."""
+        return self.get_float('DISCORD_RANDOM_REPLY_CHANCE', 0.02)
+
+    @property
+    def discord_random_reply_cooldown(self) -> int:
+        """Seconds a channel stays quiet after the bot riffs there."""
+        return self.get_int('DISCORD_RANDOM_REPLY_COOLDOWN', 600)
+
+    @property
+    def discord_random_reply_channels(self) -> list[int]:
+        """Channel IDs the bot may riff in (comma-separated). Empty means all."""
+        raw = self.get_secret('DISCORD_RANDOM_REPLY_CHANNELS', '') or ''
+        channels = []
+        for part in raw.split(','):
+            part = part.strip()
+            if not part:
+                continue
+            try:
+                channels.append(int(part))
+            except ValueError:
+                logger.warning(f"Ignoring non-numeric channel ID in DISCORD_RANDOM_REPLY_CHANNELS: {part!r}")
+        return channels
+
     def validate(self) -> tuple[bool, list[str]]:
         """
         Validate that all required configuration is present.

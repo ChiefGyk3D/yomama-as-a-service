@@ -95,6 +95,30 @@ python main.py --discord
 The text prefix comes from `DISCORD_PREFIX` (built-in default `!`; the shipped
 `.env.example` sets `$`). Slash commands are unaffected by it.
 
+**Drive-by Jokes (no command needed):**
+
+Every so often the bot takes a random message from a real person and turns it
+into a Yo Mama joke, replying to that message:
+
+```
+you:          this link is broken
+Yo Mama Bot:  🎤 Yo mama so broken, even this link works better than her.
+```
+
+It never responds to bots, webhooks, system messages, DMs, commands, or
+messages with fewer than three real words, and after it fires in a channel that
+channel is left alone for a cooldown period. Configure it in `.env`:
+
+```env
+DISCORD_RANDOM_REPLY_CHANCE=0.02      # 2% of eligible messages; 0 turns it off
+DISCORD_RANDOM_REPLY_COOLDOWN=600     # seconds of peace per channel afterwards
+DISCORD_RANDOM_REPLY_CHANNELS=        # comma-separated channel IDs; empty = everywhere
+```
+
+The **Message Content Intent** from Step 2 is required, since the bot has to
+read messages to riff on them. The joke uses `DEFAULT_MEANNESS` and
+`DEFAULT_NERDINESS`.
+
 **Examples:**
 ```
 /joke classic 8 1         # Traditional Yo Mama joke, savage but accessible

@@ -192,6 +192,7 @@ Both services pass these through to the hypeman-social LLM layer:
 - `DEFAULT_NERDINESS` - Nerdiness level 1-10 (default: 5)
 - `LOG_LEVEL` - Logging level (default: INFO)
 - `DISCORD_PREFIX` - Text-command prefix (default in `.env.example`: `$`)
+- `DISCORD_RANDOM_REPLY_CHANCE` / `DISCORD_RANDOM_REPLY_COOLDOWN` / `DISCORD_RANDOM_REPLY_CHANNELS` - Drive-by jokes: chance a human message gets a Yo Mama reply (default `0.02`, `0` disables), per-channel cooldown in seconds (default `600`), optional channel allowlist
 - `MATRIX_PREFIX` / `MATRIX_AUTO_JOIN` / `MATRIX_DEVICE_ID` - Matrix behavior
 
 ### Secrets Management (Optional)

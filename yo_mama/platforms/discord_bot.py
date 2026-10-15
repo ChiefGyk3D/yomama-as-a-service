@@ -3,9 +3,12 @@
 """
 Discord bot platform for Yo Mama Bot.
 
-Supports slash commands, text commands, and webhook posting.
+Supports slash commands, text commands, webhook posting, and the occasional
+unsolicited drive-by: every so often the bot takes a random human message and
+turns it into a Yo Mama joke ("this link is broken" -> "Yo mama so broken...").
 """
 
+import asyncio
 import logging
 
 import discord
@@ -13,6 +16,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import get_config
+from ..random_riff import RiffGate
 from ..yo_mama_generator import YoMamaGenerator
 
 logger = logging.getLogger(__name__)
@@ -27,6 +31,12 @@ class DiscordBot:
     - /random - Generate a random joke
     - /batch [count] [flavor] [meanness] [nerdiness] - Generate multiple jokes
     - /flavors - List available flavors
+    
+    Drive-by jokes:
+    - With probability DISCORD_RANDOM_REPLY_CHANCE, a human's message gets
+      turned into a Yo Mama joke. Bots, webhooks, DMs, and commands are
+      never riffed on; each channel gets DISCORD_RANDOM_REPLY_COOLDOWN
+      seconds of peace afterwards.
     """
     
     def __init__(self, config=None):
@@ -50,9 +60,25 @@ class DiscordBot:
             model_name=self.config.gemini_model
         )
         
+        # Gate for unsolicited "yo mama so <what you just said>" replies
+        self.riff_gate = RiffGate(
+            chance=self.config.discord_random_reply_chance,
+            cooldown=self.config.discord_random_reply_cooldown,
+            allowed_channels=self.config.discord_random_reply_channels,
+        )
+        
         # Setup event handlers and commands
         self._setup_events()
         self._setup_commands()
+        
+        if self.riff_gate.enabled:
+            logger.info(
+                f"Drive-by jokes enabled: chance={self.riff_gate.chance:.2%}, "
+                f"cooldown={self.riff_gate.cooldown}s, "
+                f"channels={sorted(self.riff_gate.allowed_channels) or 'all'}"
+            )
+        else:
+            logger.info("Drive-by jokes disabled (DISCORD_RANDOM_REPLY_CHANCE=0)")
         
         logger.info("Discord bot initialized")
     
@@ -72,6 +98,41 @@ class DiscordBot:
             except Exception as e:  # noqa: BLE001  # keep the bot up if sync fails; error is logged
                 logger.error(f'Failed to sync commands: {e}')
         
+        # bot.listen (not bot.event) adds this alongside the built-in
+        # on_message, so command processing keeps working untouched.
+        @self.bot.listen('on_message')
+        async def riff_on_message(message: discord.Message):
+            """Every so often, turn what a human just said into a Yo Mama joke."""
+            if not self.riff_gate.should_riff(
+                message.content,
+                author_is_bot=self._is_not_human(message),
+                channel_id=message.channel.id,
+                in_guild=message.guild is not None,
+                command_prefix=self.bot.command_prefix,
+            ):
+                return
+            
+            logger.info(
+                f"Drive-by joke triggered in #{getattr(message.channel, 'name', message.channel.id)} "
+                f"(guild: {message.guild.name})"
+            )
+            try:
+                async with message.channel.typing():
+                    # The generator is synchronous; keep the event loop free.
+                    joke = await asyncio.to_thread(
+                        self.generator.riff_on_message,
+                        message.content,
+                        self.config.default_meanness,
+                        self.config.default_nerdiness,
+                    )
+                if not joke:
+                    return  # the model had nothing; silence beats a bad joke
+                await message.reply(f"🎤 {joke}", mention_author=False)
+            except discord.HTTPException as e:
+                logger.warning(f"Drive-by joke could not be sent: {e}")
+            except Exception as e:  # noqa: BLE001  # uninvited reply; never let it take the bot down
+                logger.error(f"Drive-by joke failed: {e}")
+        
         @self.bot.event
         async def on_command_error(ctx, error):
             """Handle command errors."""
@@ -82,6 +143,17 @@ class DiscordBot:
             else:
                 logger.error(f'Command error: {error}')
                 await ctx.send(f'❌ An error occurred: {error!s}')
+    
+    @staticmethod
+    def _is_not_human(message: discord.Message) -> bool:
+        """True for anything that isn't a person: bots, webhooks, system messages."""
+        author = message.author
+        return bool(
+            author.bot
+            or getattr(author, 'system', False)
+            or message.webhook_id is not None
+            or message.type not in (discord.MessageType.default, discord.MessageType.reply)
+        )
     
     def _setup_commands(self):
         """Setup bot commands."""
@@ -342,6 +414,19 @@ class DiscordBot:
                 value="\n".join(flavor_list),
                 inline=False
             )
+            
+            # Drive-by jokes section
+            if self.riff_gate.enabled:
+                embed.add_field(
+                    name="🎲 Drive-by Jokes",
+                    value=(
+                        f"About {self.riff_gate.chance * 100:g}% of the time, the bot takes something "
+                        "a human just said and turns it into a Yo Mama joke. "
+                        "Say \"this link is broken\" and you might get "
+                        "\"Yo mama so broken...\" back. Nothing personal."
+                    ),
+                    inline=False
+                )
             
             # Examples section
             embed.add_field(
