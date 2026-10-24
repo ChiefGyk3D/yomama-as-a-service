@@ -15,8 +15,9 @@ The Discord bot, the Matrix bot, the CLI, the joke generator and its prompt, the
 
 ## Open High or Critical threats
 
-- t4 (High): The bot is an unrestricted harassment tool: any member can aim maximum-cruelty output at a named user
-- t6 (High): No rate limit, cooldown or allowlist: any chat user can drain the shared LLM quota and keep the bot busy
+- t4 (High): harassment tool. Reduced by guild-only, optional guild and channel allowlists, `/optout`, no mention parsing and an audit line. Still open: level 11 is unchanged (a policy choice for the maintainer), the opt-out does not cover the free-text `target` or Matrix `!thegame @user`, and the default opt-out list is in memory.
+
+Mitigated by the abuse controls in issue #111 (settings in the main README, "Abuse controls"): t6 (High, cooldown, concurrency cap, batch cap, Matrix auto-join allowlist, bots ignored) and t10 (audit line). Their residual risks are written in each threat.
 
 ## UNVERIFIED items
 
@@ -28,6 +29,6 @@ The Discord bot, the Matrix bot, the CLI, the joke generator and its prompt, the
 
 ## Status counts
 
-20 threats: 15 Open, 5 Mitigated
+20 threats: 13 Open, 7 Mitigated
 
 Mitigated means the control was seen in the code; the threat's `mitigation` field cites file and function. Nothing here is a complete audit.

@@ -114,7 +114,7 @@
             "shape": "actor",
             "data": {
               "name": "Matrix users",
-              "description": "Any Matrix user in a room the bot is in; with MATRIX_AUTO_JOIN default true, any user who can invite the bot (matrix_bot.py). Untrusted.",
+              "description": "Any Matrix user in a room the bot is in. Invites are accepted only from MATRIX_AUTO_JOIN_ALLOWLIST users or servers unless MATRIX_AUTO_JOIN_ALLOW_ALL is set (matrix_bot.py:_invite_allowed). Untrusted.",
               "threats": []
             },
             "position": {
@@ -156,9 +156,9 @@
                   "status": "Open",
                   "severity": "High",
                   "type": "Elevation of privilege",
-                  "title": "The bot is an unrestricted harassment tool: any member can aim maximum-cruelty output at a named user",
-                  "description": "Which boundary: untrusted chat users to a public-posting bot. /joke takes a `user` option and a `meanness` of up to 11 (discord_bot.py:joke_slash; matrix_bot.py:_cmd_joke accepts 1-11 as well). yo_mama_generator.py:_build_prompt level 11 tells the model to be 'genuinely offensive and shocking' and 'emotionally destructive and leave lasting damage', and the thegame flavor is forced to level 11. There is no consent or opt-out for the target, no per-guild or per-channel setting, no admin gate, no `guild_only` on the slash commands (so they are also usable in DMs), and no content filter on the result (t3). Offensive output is the product, so this is partly by design, but nothing limits who it can be aimed at, how often, or how far the level goes. Risk lands on real people and on the bot's Discord standing (platform terms). Needs a maintainer policy decision rather than a one-line fix: per-guild enable and a level cap, a target opt-out, and a required audit log (t10).",
-                  "mitigation": ""
+                  "title": "Harassment tool: any member can aim maximum-cruelty output at a named user (reduced, still open)",
+                  "description": "Which boundary: untrusted chat users to a public-posting bot. /joke takes a `user` option and a `meanness` of up to 11 (discord_bot.py:joke_slash; matrix_bot.py:_cmd_joke accepts 1-11). yo_mama_generator.py:_build_prompt level 11 tells the model to be 'genuinely offensive and shocking' and 'emotionally destructive and leave lasting damage', and the thegame flavor is forced to level 11. Offensive output is the product. Reduced now: Discord commands are refused in DMs by default (DISCORD_GUILD_ONLY) and can be limited to listed guilds and channels (DISCORD_ALLOWED_GUILDS, DISCORD_ALLOWED_CHANNELS); a person can run /optout and then /joke user: (including the thegame flavor) refuses to target them; sends use allowed_mentions with nothing parsed so output cannot ping anyone; every generation writes an ids-only audit line (t10); the cooldown and concurrency cap limit how often (t6). Still open: the level cap is a product-policy choice and is unchanged (level 11 is reachable by anyone allowed to use the bot, against anyone who has not opted out); the opt-out covers only the Discord `user` option, not the free-text `target` name, a display name, or Matrix `!thegame @user` (there is no Matrix opt-out); the default opt-out list is in memory unless DISCORD_OPTOUT_FILE is set, so a restart forgets it; with empty allowlists any guild that invites the bot can use it; there is still no content filter on the result (t3). Needs a maintainer decision on a level cap and on a Matrix opt-out.",
+                  "mitigation": "Partial only, status stays Open. Implemented: discord_bot.py:_check_interaction/_check_text/_place_allowed (guild-only, allowlists), discord_bot.py:joke_slash (opt-out refusal), optout_slash/optin_slash, guard.py:OptOutStore, NO_MENTIONS on every send, discord_bot.py:_audit. Tests: tests/test_abuse_controls.py (test_guild_only_blocks_dm_by_default, test_guild_and_channel_allowlists, test_opted_out_user_is_not_targeted, test_opted_out_user_is_not_targeted_by_thegame, test_optout_and_optin_commands, test_optout_persists_to_configured_file, test_sends_never_parse_mentions, test_client_default_allowed_mentions_is_none, test_guild_only_and_allowlist_apply_to_text_commands), tests/test_guard.py (TestOptOutStore)."
                 },
                 {
                   "id": "t7",
@@ -191,12 +191,12 @@
                 {
                   "id": "t10",
                   "number": 10,
-                  "status": "Open",
+                  "status": "Mitigated",
                   "severity": "Medium",
                   "type": "Repudiation",
                   "title": "No audit trail of who asked for what",
-                  "description": "Discord: no handler logs the invoking user, guild, channel or target (no interaction.user or ctx.author reference exists in yo_mama/); the generator logs only flavor and levels. Matrix: matrix_bot.py:_handle_message logs command, sender and room, but not arguments or output. After a harassment complaint (t4) the operator cannot say who generated a given message. Also, errors are the only thing logged for failed commands.",
-                  "mitigation": ""
+                  "description": "Before the fix Discord handlers logged no invoking user, guild, channel or target, and Matrix logged only command, sender and room. Now each generation writes one line on the yo_mama.audit logger: platform, command, invoker id, target id, meanness level, guild and channel or room (guard.py:audit; discord_bot.py:_audit; matrix_bot.py:_audit), after admission, so refused requests are not logged as generations. The line holds ids and the level only, never message text, arguments, display names or tokens. Residual risk, accepted: the generated text is deliberately not logged, so a posted message is tied to an invocation by time, channel and invoker only; the lines go to the process log (stdout or the journal) with no retention or tamper protection of their own; the free-text `target` name is not recorded.",
+                  "mitigation": "yo_mama/guard.py:audit, called from discord_bot.py:_audit (joke_slash, random_slash, batch_slash, text commands, optout/optin) and matrix_bot.py:_audit (from _handle_message). Tests: tests/test_guard.py::TestAudit, tests/test_abuse_controls.py::test_audit_line_has_ids_only (Discord and Matrix variants, asserting free text and display names are absent), test_no_audit_or_generation_for_refused_requests."
                 }
               ]
             },
@@ -536,7 +536,7 @@
             },
             "data": {
               "name": "Interactions and messages to bot",
-              "description": "Free-text target and display names arrive here (t1, t2); no rate limit (t6).",
+              "description": "Free-text target and display names arrive here (t1, t2); per-user cooldown and a global concurrency cap apply before generation (guard.py:GenerationGuard; t6).",
               "threats": []
             }
           },
@@ -597,12 +597,12 @@
                 {
                   "id": "t6",
                   "number": 6,
-                  "status": "Open",
+                  "status": "Mitigated",
                   "severity": "High",
                   "type": "Denial of service",
-                  "title": "No rate limit, cooldown or allowlist: any chat user can drain the shared LLM quota and keep the bot busy",
-                  "description": "Which boundary: untrusted chat users to the LLM backends (Gemini key or Ollama host). A grep of yo_mama/ finds no cooldown, per-user limit or allowlist. /batch (Discord) and !batch (Matrix) allow 10 generations per command; each generation retries up to the library defaults of 3 attempts with 2 s then 4 s backoff (hypeman-social v0.3.4 base.py), so one command can cost 30 calls. matrix_bot.py:__init__ sets MATRIX_AUTO_JOIN to true by default, and _handle_invite joins any room it is invited to, so any Matrix user on the federation can bring the bot into a room and drive it. The bot reacts to any message with the prefix from any sender, including other bots, and only ignores its own messages (matrix_bot.py:_handle_message), so two bots can loop. Effect: cost or quota exhaustion on the operator's Gemini key (or load on the Ollama host) and the canned fallback/rate-limit jokes for everyone else. Mitigating the cost needs maintainer choices (limits, allowlists, the auto-join default), so it is reported, not patched.",
-                  "mitigation": ""
+                  "title": "Unbounded use of the shared LLM quota: no rate limit, cooldown or invite allowlist",
+                  "description": "Which boundary: untrusted chat users to the LLM backends (Gemini key or Ollama host). Before the fix there was no cooldown, per-user limit or allowlist; /batch allowed 10 generations per command with up to 3 library attempts each (hypeman-social v0.3.4 base.py); MATRIX_AUTO_JOIN defaulted to true and joined any invite; the Matrix bot reacted to any sender with the prefix. Now bounded in-process: a per-user cooldown (RATE_LIMIT_COOLDOWN_SECONDS, default 10) and a global cap on concurrent generations (MAX_CONCURRENT_GENERATIONS, default 2), a /batch cap (BATCH_MAX_COUNT, default 5, hard ceiling 10), Matrix invites accepted only from an allowlist (empty allowlist joins nothing unless MATRIX_AUTO_JOIN_ALLOW_ALL=true), and messages from other bots ignored. Residual risk, accepted: the cooldown is per account, so many accounts can still reach the concurrency cap; there is no daily or monthly budget, so total spend over time is bounded by rate only; an attacker who holds both slots can starve other users (they are told the bot is busy); cooldown state is in memory and resets on restart; Matrix has no bot flag, so a foreign bot is ignored only if listed in MATRIX_IGNORE_SENDERS or if it is another instance of this bot; operators who set MATRIX_AUTO_JOIN_ALLOW_ALL=true or list a whole server accept its users' invites.",
+                  "mitigation": "yo_mama/guard.py:GenerationGuard.slot (cooldown, concurrency cap) used in discord_bot.py:joke_slash/random_slash/batch_slash/joke_text/random_text/thegame_text and matrix_bot.py:_handle_message; config.py:batch_max_count with discord_bot.py:batch_slash and matrix_bot.py:_cmd_batch; matrix_bot.py:_invite_allowed/_handle_invite (allowlist, default joins nothing); discord_bot.py:_check_text (bot authors ignored) and matrix_bot.py:_handle_message (BOT_MARKER and MATRIX_IGNORE_SENDERS). Tests: tests/test_guard.py (TestCooldown, TestConcurrency), tests/test_abuse_controls.py (test_cooldown_blocks_second_joke_and_skips_generation, test_concurrency_cap_refuses_extra_generation, test_batch_default_cap_is_five, test_batch_cap_is_configurable_and_hard_limited_to_ten, test_other_bots_are_ignored, test_auto_join_default_joins_nobody, test_allowlist_matches_user_id_and_server_name, test_allow_all_setting_keeps_old_behavior, test_cooldown_per_sender, test_concurrency_cap, test_configured_ignore_senders, test_messages_from_other_yomama_instances_are_ignored). Settings documented in README.md 'Abuse controls'."
                 }
               ]
             }
@@ -775,8 +775,8 @@
                   "status": "Open",
                   "severity": "Medium",
                   "type": "Tampering",
-                  "title": "Model output is posted publicly with no moderation, length or mention handling",
-                  "description": "yo_mama/yo_mama_generator.py:generate_joke calls engine.generate(prompt), the raw call, not the library's generate_validated/apply_guardrails path, so the profanity, length and hallucination checks in hypeman-social are not applied (read in hypeman-social v0.3.4 hypeman_social/llm/manager.py). The only output limit is the library's LLM_MAX_TOKENS default of 150 (base.py). The text goes into a Discord embed or a plain message: discord_bot.py:joke_text/random_text/thegame_text use ctx.send(f'... {joke}'), and no allowed_mentions setting appears anywhere in yo_mama/, so a model that emits @everyone or a user mention can ping if the bot holds that permission (embeds do not ping). No Gemini safety settings were seen in hypeman-social v0.3.4 gemini.py, so provider defaults apply. UNVERIFIED: the exact provider default filter behavior.",
+                  "title": "Model output is posted publicly with no moderation or length handling",
+                  "description": "yo_mama/yo_mama_generator.py:generate_joke calls engine.generate(prompt), the raw call, not the library's generate_validated/apply_guardrails path, so the profanity, length and hallucination checks in hypeman-social are not applied (read in hypeman-social v0.3.4 hypeman_social/llm/manager.py). The only output limit is the library's LLM_MAX_TOKENS default of 150 (base.py). The text goes into a Discord embed or a plain message: discord_bot.py:joke_text/random_text/thegame_text use ctx.send(f'... {joke}'), Mentions are now handled on Discord: the client default and every send pass allowed_mentions with nothing parsed (discord_bot.py:NO_MENTIONS; tests/test_abuse_controls.py::test_sends_never_parse_mentions), so a model that emits @everyone or a user mention cannot ping. Matrix sends plain-text body and HTML formatted_body and has no equivalent change. No Gemini safety settings were seen in hypeman-social v0.3.4 gemini.py, so provider defaults apply. UNVERIFIED: the exact provider default filter behavior.",
                   "mitigation": ""
                 }
               ]
