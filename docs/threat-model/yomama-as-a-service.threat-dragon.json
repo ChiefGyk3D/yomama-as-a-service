@@ -163,12 +163,12 @@
                 {
                   "id": "t7",
                   "number": 7,
-                  "status": "Open",
+                  "status": "Mitigated",
                   "severity": "High",
                   "type": "Denial of service",
                   "title": "One slow or retrying LLM call freezes the whole bot (blocking calls inside the event loop)",
-                  "description": "discord_bot.py (joke_slash, random_slash, batch_slash, joke_text, random_text, thegame_text) and matrix_bot.py (_cmd_joke, _cmd_random, _cmd_thegame, _cmd_batch) call the synchronous YoMamaGenerator methods directly inside async handlers. The library sleeps with time.sleep between retries (hypeman-social v0.3.4 base.py) and an Ollama model can take many seconds per call, so one /batch 10 stalls the Discord gateway heartbeat and the Matrix sync loop for every user. Any member can repeat it.",
-                  "mitigation": ""
+                  "description": "Before the fix, discord_bot.py (joke_slash, random_slash, batch_slash, joke_text, random_text, thegame_text) and matrix_bot.py (_cmd_joke, _cmd_random, _cmd_thegame, _cmd_batch) called the synchronous YoMamaGenerator methods directly inside async handlers. The library sleeps with time.sleep between retries (hypeman-social v0.3.4 base.py), and an Ollama model can take many seconds per call, so one /batch 10 stalled the Discord gateway heartbeat and the Matrix sync loop for every user. Any member could repeat it.",
+                  "mitigation": "Every generator call from an async handler now goes through asyncio.to_thread via yo_mama/platforms/_async.py:run_blocking (used in discord_bot.py and matrix_bot.py), so the event loop stays responsive. Test: tests/test_nonblocking.py. This does not rate-limit callers (see t6)."
                 }
               ]
             },

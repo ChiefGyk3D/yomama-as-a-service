@@ -17,7 +17,6 @@ The Discord bot, the Matrix bot, the CLI, the joke generator and its prompt, the
 
 - t4 (High): The bot is an unrestricted harassment tool: any member can aim maximum-cruelty output at a named user
 - t6 (High): No rate limit, cooldown or allowlist: any chat user can drain the shared LLM quota and keep the bot busy
-- t7 (High): One slow or retrying LLM call freezes the whole bot (blocking calls inside the event loop)
 
 ## UNVERIFIED items
 
@@ -29,6 +28,6 @@ The Discord bot, the Matrix bot, the CLI, the joke generator and its prompt, the
 
 ## Status counts
 
-20 threats: 16 Open, 4 Mitigated
+20 threats: 15 Open, 5 Mitigated
 
 Mitigated means the control was seen in the code; the threat's `mitigation` field cites file and function. Nothing here is a complete audit.
