@@ -176,7 +176,7 @@ MATRIX_AUTO_JOIN=true
 **Important:**
 - `MATRIX_USER_ID` must be your full Matrix ID including the homeserver (e.g., `@bot:matrix.org`)
 - `MATRIX_HOMESERVER` should match your homeserver URL
-- `MATRIX_AUTO_JOIN=true` makes the bot automatically join rooms when invited
+- `MATRIX_AUTO_JOIN=true` lets the bot join rooms when invited, but only invites from `MATRIX_AUTO_JOIN_ALLOWLIST` (user ids or server names). With an empty allowlist it joins nothing unless you set `MATRIX_AUTO_JOIN_ALLOW_ALL=true`
 
 ### Step 4: Run the Bot
 
@@ -193,7 +193,7 @@ python main.py --matrix
 1. Create or open a room in Element/Matrix client
 2. Click the room info → "Invite"
 3. Enter your bot's user ID (e.g., `@yourbot:matrix.org`)
-4. The bot will automatically join (if `MATRIX_AUTO_JOIN=true`)
+4. The bot will automatically join if `MATRIX_AUTO_JOIN=true` and your user or server is on `MATRIX_AUTO_JOIN_ALLOWLIST`
 
 ### Matrix Commands
 
@@ -245,7 +245,7 @@ All commands use the prefix `!` (configurable):
 - Ensure `MATRIX_HOMESERVER` URL is correct
 
 **Bot doesn't join rooms:**
-- Set `MATRIX_AUTO_JOIN=true` in `.env`
+- Set `MATRIX_AUTO_JOIN=true` and add the inviter to `MATRIX_AUTO_JOIN_ALLOWLIST` in `.env`
 - Check console logs for invite events
 - Manually accept invite through Element if needed
 

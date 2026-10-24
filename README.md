@@ -335,6 +335,10 @@ The bot uses a comprehensive priority system for secrets:
 | `DISCORD_BOT_TOKEN` | Bot token from Discord Developer Portal | ✅ Yes |
 | `DISCORD_PREFIX` | Text command prefix | No (default: `!`) |
 | `DISCORD_WEBHOOK_URL` | Optional webhook URL | No |
+| `DISCORD_GUILD_ONLY` | Refuse commands in DMs (`/optout` and `/optin` still work in a DM) | No (default: true) |
+| `DISCORD_ALLOWED_GUILDS` | Comma separated guild ids allowed to use the bot; empty means any guild | No (default: empty) |
+| `DISCORD_ALLOWED_CHANNELS` | Comma separated channel ids allowed to use the bot; empty means any channel | No (default: empty) |
+| `DISCORD_OPTOUT_FILE` | JSON file that stores the opt-out list; empty keeps it in memory and a restart forgets it | No (default: empty) |
 
 **Matrix Bot:**
 
@@ -346,7 +350,55 @@ The bot uses a comprehensive priority system for secrets:
 | `MATRIX_PASSWORD` | Bot password (used to log in when no access token is set) | ✅ Yes, unless `MATRIX_ACCESS_TOKEN` is set |
 | `MATRIX_DEVICE_ID` | Device ID | No (default: `yo_mama_bot`) |
 | `MATRIX_PREFIX` | Command prefix | No (default: `!`) |
-| `MATRIX_AUTO_JOIN` | Auto-join invited rooms | No (default: true) |
+| `MATRIX_AUTO_JOIN` | Join rooms the bot is invited to, subject to the allowlist below | No (default: true) |
+| `MATRIX_AUTO_JOIN_ALLOWLIST` | Comma separated user ids (`@alice:example.org`) or server names (`example.org`) whose invites are accepted | No (default: empty) |
+| `MATRIX_AUTO_JOIN_ALLOW_ALL` | Accept every invite (the pre-allowlist behavior) | No (default: false) |
+| `MATRIX_IGNORE_SENDERS` | Comma separated user ids of other bots to ignore | No (default: empty) |
+
+### Abuse controls
+
+This is a roast bot, and an open one can be pointed at a person or at your LLM bill.
+These settings bound it. They apply to both bots unless noted, and each one is a
+plain setting with a conservative default.
+
+| Variable | What it does | Default |
+|----------|--------------|---------|
+| `RATE_LIMIT_COOLDOWN_SECONDS` | Seconds a user must wait between generations (per user, in memory). `0` turns it off | `10` |
+| `MAX_CONCURRENT_GENERATIONS` | Generations allowed to run at once across all users; extra requests are told the bot is busy | `2` |
+| `BATCH_MAX_COUNT` | Largest `/batch` or `!batch`. Never above 10, which was the old limit | `5` |
+
+Also in place, with no setting:
+
+- Messages from other bots are ignored. Discord prefix commands skip any bot author.
+  Matrix has no bot flag, so this bot marks everything it sends and ignores messages
+  carrying that mark; list other bots in `MATRIX_IGNORE_SENDERS`.
+- Discord sends use `allowed_mentions` with nothing parsed, so neither the model's
+  output nor a typed `@everyone` pings anyone.
+- Anyone can run `/optout` to stop being targeted by `/joke user:` (including the
+  `thegame` flavor) and `/optin` to undo it. Set `DISCORD_OPTOUT_FILE` to keep the
+  list across restarts (written atomically, mode 0600). Free-text `target` names
+  and Matrix `!thegame @user` are not covered by the opt-out.
+- Each generation writes one log line on the `yo_mama.audit` logger with ids and the
+  meanness level only (platform, command, invoker id, target id, level, guild,
+  channel or room). It never contains message text, arguments or tokens.
+
+**Upgrade impact.** Check these before you update a running bot:
+
+- **Matrix invites.** With the defaults the bot no longer joins any room, because
+  `MATRIX_AUTO_JOIN=true` now needs an allowlist. Set `MATRIX_AUTO_JOIN_ALLOWLIST`
+  to the users or servers you trust, or set `MATRIX_AUTO_JOIN_ALLOW_ALL=true` to
+  keep the old accept-everyone behavior on purpose. Rooms the bot is already in
+  are not affected. A startup warning says when invites will all be refused.
+- **Discord DMs.** Commands are refused in DMs unless `DISCORD_GUILD_ONLY=false`.
+- **Cooldown.** One generation per user every 10 seconds; set
+  `RATE_LIMIT_COOLDOWN_SECONDS=0` to turn it off.
+- **Batch size.** `/batch` and `!batch` top out at 5, down from 10. Raise
+  `BATCH_MAX_COUNT` (up to 10) if you want it back.
+- **Docker.** `docker-compose.yml` passes the new variables through; a custom
+  compose file must do the same.
+
+Not changed: the meanness range still goes to 11 and the level-11 prompt is as it
+was. Capping the top level is a product choice, so it is left to the maintainer.
 
 ## 📦 Project Structure
 

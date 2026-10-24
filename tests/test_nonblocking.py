@@ -14,6 +14,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from tests.test_abuse_controls import DictConfig
+from yo_mama.guard import GenerationGuard
 from yo_mama.platforms.discord_bot import DiscordBot
 from yo_mama.platforms.matrix_bot import MatrixBot
 
@@ -61,7 +63,8 @@ async def _ticks_while(coro):
 def _matrix_bot():
     bot = MatrixBot.__new__(MatrixBot)
     bot.generator = SlowGenerator()
-    bot.config = MagicMock(default_meanness=5, default_nerdiness=5)
+    bot.config = DictConfig()
+    bot.guard = GenerationGuard(cooldown_seconds=0, max_concurrent=2)
     bot._send_message = AsyncMock()
     return bot
 
@@ -69,9 +72,7 @@ def _matrix_bot():
 def _discord_bot():
     with patch("yo_mama.platforms.discord_bot.YoMamaGenerator") as gen_cls:
         gen_cls.list_flavors.return_value = ["tech"]
-        bot = DiscordBot(config=MagicMock(
-            default_flavor="tech", default_meanness=5, default_nerdiness=5,
-            get_config=lambda key, default=None: default))
+        bot = DiscordBot(config=DictConfig({"RATE_LIMIT_COOLDOWN_SECONDS": "0"}))
     bot.generator = SlowGenerator()
     return bot
 

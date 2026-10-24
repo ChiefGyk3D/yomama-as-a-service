@@ -12,10 +12,18 @@ import logging
 from nio import AsyncClient, InviteEvent, MatrixRoom, RoomMessageText
 
 from ..config import get_config
+from ..guard import GenerationGuard, Refused, audit
 from ..yo_mama_generator import YoMamaGenerator
 from ._async import run_blocking
 
 logger = logging.getLogger(__name__)
+
+# Matrix has no bot flag. Every message this bot sends carries this key so a
+# second instance (or this one, in another room) can recognise it and not react.
+BOT_MARKER = "dev.yomama.bot"
+
+# Commands that call the LLM and therefore go through the cooldown and the cap.
+_GENERATING = frozenset({"joke", "random", "batch", "thegame"})
 
 
 class MatrixBot:
@@ -74,7 +82,20 @@ class MatrixBot:
         self.prefix = self.config.get_config('MATRIX_PREFIX', '!')
         
         # Auto-join rooms
-        self.auto_join = self.config.get_bool('MATRIX_AUTO_JOIN', True)
+        self.auto_join = self.config.matrix_auto_join
+        self.auto_join_allowlist = self.config.matrix_auto_join_allowlist
+        self.auto_join_allow_all = self.config.matrix_auto_join_allow_all
+        self.ignore_senders = self.config.matrix_ignore_senders
+        if self.auto_join and not (self.auto_join_allowlist or self.auto_join_allow_all):
+            logger.warning(
+                "MATRIX_AUTO_JOIN is on but MATRIX_AUTO_JOIN_ALLOWLIST is empty and "
+                "MATRIX_AUTO_JOIN_ALLOW_ALL is not set: no invite will be accepted")
+
+        # Abuse controls (see README "Abuse controls")
+        self.guard = GenerationGuard(
+            cooldown_seconds=self.config.rate_limit_cooldown,
+            max_concurrent=self.config.max_concurrent_generations,
+        )
         
         # Setup callbacks
         self._setup_callbacks()
@@ -92,9 +113,24 @@ class MatrixBot:
         if self.auto_join:
             self.client.add_event_callback(self._handle_invite, InviteEvent)
     
+    def _invite_allowed(self, sender: str | None) -> bool:
+        """True when this inviter may bring the bot into a room."""
+        if not self.auto_join:
+            return False
+        if self.auto_join_allow_all:
+            return True
+        sender = (sender or "").lower()
+        server = sender.partition(":")[2]
+        return any(entry == sender or (not entry.startswith("@") and entry == server)
+                   for entry in self.auto_join_allowlist)
+
     async def _handle_invite(self, room: MatrixRoom, event: InviteEvent):
-        """Auto-join rooms when invited."""
-        logger.info(f"Invited to room {room.room_id}")
+        """Join rooms when invited by an allowlisted user or server."""
+        sender = getattr(event, "sender", None)
+        if not self._invite_allowed(sender):
+            logger.warning(f"Ignored invite to room {room.room_id} from {sender}: not on the auto-join allowlist")
+            return
+        logger.info(f"Invited to room {room.room_id} by {sender}")
         try:
             await self.client.join(room.room_id)
             logger.info(f"Joined room {room.room_id}")
@@ -105,6 +141,13 @@ class MatrixBot:
         """Handle incoming messages."""
         # Ignore our own messages
         if event.sender == self.user_id:
+            return
+
+        # Ignore other bots: configured senders and anything another instance sent
+        if event.sender.lower() in self.ignore_senders:
+            return
+        content = (getattr(event, "source", None) or {}).get("content") or {}
+        if isinstance(content, dict) and content.get(BOT_MARKER):
             return
         
         message = event.body.strip()
@@ -125,24 +168,52 @@ class MatrixBot:
         
         # Route commands
         try:
-            if command == 'joke':
-                await self._cmd_joke(room, args)
-            elif command == 'random':
-                await self._cmd_random(room)
-            elif command == 'batch':
-                await self._cmd_batch(room, args)
-            elif command == 'flavors':
-                await self._cmd_flavors(room)
-            elif command == 'help':
-                await self._cmd_help(room)
-            elif command == 'thegame':
-                await self._cmd_thegame(room, args)
+            if command in _GENERATING:
+                async with self.guard.slot(event.sender):
+                    self._audit(command, event.sender, room.room_id, args)
+                    await self._dispatch(command, room, args)
             else:
-                await self._send_message(room, f"Unknown command: {command}. Try !help")
+                await self._dispatch(command, room, args)
+        except Refused as e:
+            await self._send_message(room, f"⏳ {e}")
         except Exception as e:  # noqa: BLE001  # per-message handler; error is logged and reported
             logger.error(f"Error handling command: {e}")
             await self._send_message(room, f"❌ Error: {e!s}")
     
+    def _audit(self, command: str, sender: str, room_id: str, args: list):
+        """Audit line: ids and level only, never message text."""
+        level = None
+        target = None
+        if command == 'joke':
+            try:
+                level = int(args[1]) if len(args) > 1 else self.config.default_meanness
+            except ValueError:
+                level = None
+        elif command == 'thegame':
+            level = 11
+            if args and args[0].startswith('@'):
+                target = args[0]
+        elif command == 'batch':
+            level = self.config.default_meanness
+        audit("matrix", command, invoker=sender, target=target, level=level, channel=room_id)
+
+    async def _dispatch(self, command: str, room: MatrixRoom, args: list):
+        """Route one parsed command."""
+        if command == 'joke':
+            await self._cmd_joke(room, args)
+        elif command == 'random':
+            await self._cmd_random(room)
+        elif command == 'batch':
+            await self._cmd_batch(room, args)
+        elif command == 'flavors':
+            await self._cmd_flavors(room)
+        elif command == 'help':
+            await self._cmd_help(room)
+        elif command == 'thegame':
+            await self._cmd_thegame(room, args)
+        else:
+            await self._send_message(room, f"Unknown command: {command}. Try !help")
+
     async def _cmd_joke(self, room: MatrixRoom, args: list):
         """Handle !joke command."""
         # Parse arguments: [flavor] [meanness] [nerdiness]
@@ -209,8 +280,9 @@ class MatrixBot:
             await self._send_message(room, "❌ Count must be a number")
             return
         
-        if count < 1 or count > 10:
-            await self._send_message(room, "❌ Count must be between 1 and 10")
+        cap = self.config.batch_max_count
+        if count < 1 or count > cap:
+            await self._send_message(room, f"❌ Count must be between 1 and {cap}")
             return
         
         flavor = args[1] if len(args) > 1 else None
@@ -250,7 +322,7 @@ class MatrixBot:
 
 • <code>!random</code> - Generate a random joke
 
-• <code>!batch [count] [flavor]</code> - Generate multiple jokes
+• <code>!batch [count] [flavor]</code> - Generate multiple jokes (default max 5)
   Example: <code>!batch 5 tech</code>
 
 • <code>!flavors</code> - List available flavors
@@ -275,12 +347,14 @@ class MatrixBot:
                     "msgtype": "m.text",
                     "body": message,
                     "format": "org.matrix.custom.html",
-                    "formatted_body": html_message
+                    "formatted_body": html_message,
+                    BOT_MARKER: True
                 }
             else:
                 content = {
                     "msgtype": "m.text",
-                    "body": message
+                    "body": message,
+                    BOT_MARKER: True
                 }
             
             await self.client.room_send(
@@ -319,7 +393,8 @@ class MatrixBot:
                 "msgtype": "m.text",
                 "body": joke,
                 "format": "org.matrix.custom.html",
-                "formatted_body": message.replace('\n', '<br/>')
+                "formatted_body": message.replace('\n', '<br/>'),
+                BOT_MARKER: True
             }
             
             await self.client.room_send(
