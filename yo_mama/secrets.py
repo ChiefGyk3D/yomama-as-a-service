@@ -14,9 +14,46 @@ Priority order for secrets:
 import json
 import logging
 import os
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# The one placeholder rule for every secret this project reads. Case
+# insensitive, after trimming. Empty counts. The values in .env.example are
+# empty, so a copied file never carries a working-looking value.
+_PLACEHOLDER = re.compile(
+    r"^(your[_-].*|change[_-]?me.*|xxx.*|dp\.st\.your.*|<.*>|example|placeholder)$",
+    re.IGNORECASE,
+)
+
+
+class MissingSecretError(ValueError):
+    """A required secret is empty, unset or a placeholder. Names it, never its value."""
+
+
+def is_placeholder(value: str | None) -> bool:
+    """True for None, empty, whitespace or an example placeholder value."""
+    if value is None:
+        return True
+    value = value.strip()
+    return not value or bool(_PLACEHOLDER.match(value))
+
+
+def require_secret(name: str, value: str | None) -> str:
+    """Return value, or raise MissingSecretError naming `name` (never the value)."""
+    if is_placeholder(value):
+        raise MissingSecretError(f"{name} is required: it is empty, unset or still a placeholder")
+    return value.strip()
+
+
+def _usable_token(name: str) -> str | None:
+    """Environment token `name`, or None (with a log line naming it) if empty or a placeholder."""
+    value = os.getenv(name)
+    if value and is_placeholder(value):
+        logger.warning(f"{name} is a placeholder; ignoring it")
+        return None
+    return value or None
 
 
 def load_secrets_from_aws(secret_name: str) -> dict[str, Any]:
@@ -62,8 +99,9 @@ def load_secrets_from_vault(secret_path: str) -> dict[str, Any]:
         vault_url = os.getenv('SECRETS_VAULT_URL')
         vault_token = os.getenv('SECRETS_VAULT_TOKEN')
         
-        if not vault_url or not vault_token:
-            logger.error("SECRETS_VAULT_URL or SECRETS_VAULT_TOKEN not configured")
+        if not vault_url or is_placeholder(vault_token):
+            logger.error("SECRETS_VAULT_URL or SECRETS_VAULT_TOKEN not configured "
+                         "(unset, empty or a placeholder); Vault is not used")
             return {}
         
         client = hvac.Client(url=vault_url, token=vault_token)
@@ -97,7 +135,7 @@ def load_secrets_from_doppler(secret_name: str | None = None) -> dict[str, Any]:
     try:
         from dopplersdk import DopplerSDK
         
-        doppler_token = os.getenv('DOPPLER_TOKEN')
+        doppler_token = _usable_token('DOPPLER_TOKEN')
         if not doppler_token:
             logger.debug("DOPPLER_TOKEN not set")
             return {}
@@ -203,7 +241,7 @@ def get_secret(
             env_key = key.upper()
         
         # Priority 1: Try Doppler first if DOPPLER_TOKEN exists
-        if os.getenv('DOPPLER_TOKEN'):
+        if _usable_token('DOPPLER_TOKEN'):
             # Try with doppler_prefix if provided
             if doppler_prefix:
                 doppler_secrets = load_secrets_from_doppler(doppler_prefix)

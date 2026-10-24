@@ -334,7 +334,7 @@ The bot uses a comprehensive priority system for secrets:
 |----------|-------------|----------|
 | `DISCORD_BOT_TOKEN` | Bot token from Discord Developer Portal | ✅ Yes |
 | `DISCORD_PREFIX` | Text command prefix | No (default: `!`) |
-| `DISCORD_WEBHOOK_URL` | Optional webhook URL | No |
+| `DISCORD_WEBHOOK_URL` | Webhook URL (not read by the bot today) | No |
 | `DISCORD_GUILD_ONLY` | Refuse commands in DMs (`/optout` and `/optin` still work in a DM) | No (default: true) |
 | `DISCORD_ALLOWED_GUILDS` | Comma separated guild ids allowed to use the bot; empty means any guild | No (default: empty) |
 | `DISCORD_ALLOWED_CHANNELS` | Comma separated channel ids allowed to use the bot; empty means any channel | No (default: empty) |
@@ -354,6 +354,28 @@ The bot uses a comprehensive priority system for secrets:
 | `MATRIX_AUTO_JOIN_ALLOWLIST` | Comma separated user ids (`@alice:example.org`) or server names (`example.org`) whose invites are accepted | No (default: empty) |
 | `MATRIX_AUTO_JOIN_ALLOW_ALL` | Accept every invite (the pre-allowlist behavior) | No (default: false) |
 | `MATRIX_IGNORE_SENDERS` | Comma separated user ids of other bots to ignore | No (default: empty) |
+
+### Required secrets
+
+The bot has no password of its own. Its secrets are third-party credentials, and the
+bot refuses to start without the ones it needs. A value counts as missing when it is
+unset, empty or a placeholder: `your_*` or `your-*`, `changeme*`, `xxx*`,
+`dp.st.your*`, `<...>`, `example` or `placeholder`, matched case-insensitively. The
+error names the variable and never prints the value. `.env.example` ships these
+empty, so copying it never hands you a working-looking value.
+
+| Secret | Needed for | Without it | Where it can live |
+|--------|------------|------------|-------------------|
+| `GEMINI_API_KEY` | Any run with `gemini` as `LLM_PROVIDER` or in `LLM_FALLBACK_PROVIDER`: the CLI, the Discord bot and the Matrix bot | Refuses to start and names the key. Not needed for an Ollama-only setup | env or `.env`, Doppler, AWS Secrets Manager, Vault |
+| `DISCORD_BOT_TOKEN` | Discord bot | Refuses to start | same |
+| `MATRIX_ACCESS_TOKEN` or `MATRIX_PASSWORD` (plus `MATRIX_USER_ID`) | Matrix bot | Refuses to start unless one of the two is real. A placeholder in one is ignored, so a real value in the other is used. The token wins when both are real | same |
+| `DOPPLER_TOKEN` | Optional: load secrets from Doppler | Doppler is skipped and the next source is used; a placeholder logs a warning naming the variable | environment only |
+| `SECRETS_VAULT_TOKEN` (with `SECRETS_VAULT_URL`) | Optional: `SECRETS_MANAGER=vault` | Vault is skipped with an error log naming the variable, and the next source is used | environment only |
+| `DISCORD_WEBHOOK_URL` | Nothing: the bot does not read it today | No effect | n/a |
+
+Bots started through `python main.py --discord` or `--matrix` run the same checks.
+The AWS Secrets Manager backend uses the standard AWS credential chain, which this
+project does not read.
 
 ### Abuse controls
 

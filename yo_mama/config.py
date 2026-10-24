@@ -17,7 +17,12 @@ import os
 from dotenv import load_dotenv
 
 # Import our comprehensive secrets manager
-from .secrets import get_secret, load_secrets_from_doppler
+from .secrets import (
+    MissingSecretError,
+    get_secret,
+    is_placeholder,
+    load_secrets_from_doppler,
+)
 
 # Load .env file
 load_dotenv()
@@ -39,7 +44,7 @@ class Config:
     
     def __init__(self):
         # Check which secrets managers are available
-        self._has_doppler = bool(os.getenv('DOPPLER_TOKEN'))
+        self._has_doppler = not is_placeholder(os.getenv('DOPPLER_TOKEN'))
         self._secrets_manager = os.getenv('SECRETS_MANAGER', 'none').lower()
         
         if self._has_doppler:
@@ -137,8 +142,12 @@ class Config:
 
     @property
     def gemini_api_key(self) -> str | None:
-        """Get Google Gemini API key."""
-        return self.get_secret('GEMINI_API_KEY')
+        """Google Gemini API key, or None when unset, empty or a placeholder."""
+        value = self.get_secret('GEMINI_API_KEY')
+        if value and is_placeholder(value):
+            logger.warning("GEMINI_API_KEY is a placeholder; treating it as unset")
+            return None
+        return value or None
     
     @property
     def gemini_model(self) -> str:
@@ -238,11 +247,18 @@ class Config:
         missing = []
 
         for key in required_keys:
-            if not self.get_secret(key):
+            if is_placeholder(self.get_secret(key)):
                 missing.append(key)
         
         is_valid = len(missing) == 0
         return is_valid, missing
+
+    def require_valid(self) -> None:
+        """Raise MissingSecretError naming each missing required key (never a value)."""
+        is_valid, missing = self.validate()
+        if not is_valid:
+            raise MissingSecretError(
+                f"Required secret(s) empty, unset or still a placeholder: {', '.join(missing)}")
 
 
 # Global config instance
