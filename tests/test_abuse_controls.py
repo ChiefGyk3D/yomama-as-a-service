@@ -26,6 +26,12 @@ class DictConfig(Config):
     """The real Config parsing, backed by a dict instead of the environment."""
 
     def __init__(self, values=None):
+        # Run the real base __init__, but with no secrets manager in play, so an
+        # ambient DOPPLER_TOKEN on a developer machine never triggers a network call.
+        with patch.dict(os.environ):
+            os.environ.pop("DOPPLER_TOKEN", None)
+            os.environ.pop("SECRETS_MANAGER", None)
+            super().__init__()
         self.values = dict(values or {})
 
     def get_secret(self, key, default=None):
@@ -88,6 +94,25 @@ def _sent_text(mock_send):
             parts.append(str(embed.description or ""))
             parts.extend(str(f.value) for f in embed.fields)
     return "\n".join(parts)
+
+
+class TestDictConfigHelper(unittest.TestCase):
+    """The helper must run the base Config.__init__ and stay off the network."""
+
+    def test_base_init_runs(self):
+        c = DictConfig()
+        self.assertTrue(hasattr(c, "_has_doppler"))
+        self.assertTrue(hasattr(c, "_secrets_manager"))
+
+    def test_ambient_doppler_token_is_ignored(self):
+        with (
+            patch.dict(os.environ, {"DOPPLER_TOKEN": "dp.st.fake", "SECRETS_MANAGER": "aws"}),
+            patch("yo_mama.config.load_secrets_from_doppler") as load,
+        ):
+            c = DictConfig({"RATE_LIMIT_COOLDOWN_SECONDS": "7"})
+        load.assert_not_called()
+        self.assertFalse(c._has_doppler)
+        self.assertEqual(c.rate_limit_cooldown, 7)
 
 
 class TestConservativeDefaults(unittest.TestCase):

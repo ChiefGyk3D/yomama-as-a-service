@@ -104,11 +104,14 @@ class TestConcurrency(unittest.TestCase):
     def test_slot_released_when_body_raises(self):
         guard = GenerationGuard(cooldown_seconds=0, max_concurrent=1, clock=FakeClock())
 
+        async def failing_body():
+            async with guard.slot("u1"):
+                raise RuntimeError("boom")
+
         async def scenario():
             with self.assertRaises(RuntimeError):
-                async with guard.slot("u1"):
-                    raise RuntimeError("boom")
-            async with guard.slot("u1"):
+                await failing_body()
+            async with guard.slot("u1"):  # the slot was released by the failure
                 pass
 
         run(scenario())
