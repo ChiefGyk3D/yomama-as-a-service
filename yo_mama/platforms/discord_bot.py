@@ -14,6 +14,7 @@ from discord.ext import commands
 
 from ..config import get_config
 from ..guard import GenerationGuard, OptOutStore, Refused, audit
+from ..secrets import MissingSecretError, require_secret
 from ..yo_mama_generator import YoMamaGenerator
 from ._async import run_blocking
 
@@ -636,11 +637,12 @@ class DiscordBot:
     
     def run(self):
         """Run the Discord bot."""
-        token = self.config.get_secret('DISCORD_BOT_TOKEN')
-        
-        if not token:
-            logger.error("DISCORD_BOT_TOKEN not found in configuration")
-            raise ValueError("DISCORD_BOT_TOKEN is required")
+        try:
+            self.config.require_valid()
+            token = require_secret('DISCORD_BOT_TOKEN', self.config.get_secret('DISCORD_BOT_TOKEN'))
+        except MissingSecretError as e:
+            logger.error(str(e))
+            raise
         
         logger.info("Starting Discord bot...")
         self.bot.run(token)

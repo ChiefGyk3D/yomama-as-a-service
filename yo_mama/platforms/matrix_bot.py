@@ -13,6 +13,7 @@ from nio import AsyncClient, InviteEvent, MatrixRoom, RoomMessageText
 
 from ..config import get_config
 from ..guard import GenerationGuard, Refused, audit
+from ..secrets import MissingSecretError, is_placeholder
 from ..yo_mama_generator import YoMamaGenerator
 from ._async import run_blocking
 
@@ -49,16 +50,21 @@ class MatrixBot:
             self.homeserver = f'https://{self.homeserver}'
         
         self.user_id = self.config.get_secret('MATRIX_USER_ID')
-        self.access_token = self.config.get_secret('MATRIX_ACCESS_TOKEN')
-        self.password = self.config.get_secret('MATRIX_PASSWORD')
+        # A placeholder counts as unset: it must not select a login mode.
+        access_token = self.config.get_secret('MATRIX_ACCESS_TOKEN')
+        password = self.config.get_secret('MATRIX_PASSWORD')
+        self.access_token = None if is_placeholder(access_token) else access_token.strip()
+        self.password = None if is_placeholder(password) else password.strip()
         self.device_id = self.config.get_secret('MATRIX_DEVICE_ID', 'yo_mama_bot')
         
         # Require either access token OR username+password
-        if not self.user_id:
-            raise ValueError("MATRIX_USER_ID is required")
+        if is_placeholder(self.user_id):
+            raise MissingSecretError("MATRIX_USER_ID is required: it is empty, unset or still a placeholder")
         
         if not self.access_token and not self.password:
-            raise ValueError("Either MATRIX_ACCESS_TOKEN or MATRIX_PASSWORD is required")
+            raise MissingSecretError(
+                "MATRIX_ACCESS_TOKEN or MATRIX_PASSWORD is required: "
+                "both are empty, unset or still placeholders")
         
         # Initialize Matrix client
         self.client = AsyncClient(
@@ -437,6 +443,7 @@ class MatrixBot:
     
     def run(self):
         """Run the Matrix bot (blocking)."""
+        self.config.require_valid()
         asyncio.run(self.start())
 
 
