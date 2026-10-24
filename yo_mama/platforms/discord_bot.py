@@ -14,6 +14,7 @@ from discord.ext import commands
 
 from ..config import get_config
 from ..yo_mama_generator import YoMamaGenerator
+from ._async import run_blocking
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +136,8 @@ class DiscordBot:
                 
                 # Special handling for "thegame" Easter egg
                 if flavor == "thegame":
-                    joke = self.generator.generate_joke(
+                    joke = await run_blocking(
+                        self.generator.generate_joke,
                         flavor="thegame",
                         meanness=11,  # THESE GO TO ELEVEN! 🎸
                         nerdiness=meanness or 5,  # Use meanness as nerdiness for thegame
@@ -148,7 +150,8 @@ class DiscordBot:
                     embed.set_footer(text="You just lost The Game. Sorry! 😈")
                 else:
                     # Generate normal joke
-                    joke = self.generator.generate_joke(
+                    joke = await run_blocking(
+                        self.generator.generate_joke,
                         flavor=flavor or self.config.default_flavor,
                         meanness=meanness or self.config.default_meanness,
                         nerdiness=nerdiness or self.config.default_nerdiness,
@@ -181,7 +184,7 @@ class DiscordBot:
             await interaction.response.defer(thinking=True)
             
             try:
-                joke = self.generator.random_joke()
+                joke = await run_blocking(self.generator.random_joke)
                 
                 embed = discord.Embed(
                     description=f"🎲 {joke}",
@@ -234,7 +237,8 @@ class DiscordBot:
                     return
                 
                 # Generate jokes
-                jokes = self.generator.generate_batch(
+                jokes = await run_blocking(
+                    self.generator.generate_batch,
                     count=count,
                     flavor=flavor or self.config.default_flavor,
                     meanness=meanness or self.config.default_meanness,
@@ -369,7 +373,8 @@ class DiscordBot:
                     logger.info(f"Text command received: flavor='{flavor}', type={type(flavor)}")
                     # Special handling for "thegame" Easter egg
                     if flavor and flavor.lower() == "thegame":
-                        joke = self.generator.generate_joke(
+                        joke = await run_blocking(
+                            self.generator.generate_joke,
                             flavor="thegame",
                             meanness=10,  # Always maximum savage
                             nerdiness=5,
@@ -382,7 +387,8 @@ class DiscordBot:
                         embed.set_footer(text="You just lost The Game. Sorry! 😈")
                         await ctx.send(embed=embed)
                     else:
-                        joke = self.generator.generate_joke(
+                        joke = await run_blocking(
+                            self.generator.generate_joke,
                             flavor=flavor,
                             meanness=meanness,
                             nerdiness=nerdiness
@@ -398,7 +404,7 @@ class DiscordBot:
             """Generate a random joke (text command)"""
             async with ctx.typing():
                 try:
-                    joke = self.generator.random_joke()
+                    joke = await run_blocking(self.generator.random_joke)
                     await ctx.send(f"🎲 {joke}")
                 except Exception as e:  # noqa: BLE001  # per-command handler; error is logged and reported
                     logger.error(f"Error generating random joke: {e}")
@@ -410,7 +416,8 @@ class DiscordBot:
             """You just lost The Game! (Easter egg)"""
             async with ctx.typing():
                 try:
-                    joke = self.generator.generate_joke(
+                    joke = await run_blocking(
+                        self.generator.generate_joke,
                         flavor="thegame",
                         meanness=11,  # THESE GO TO ELEVEN! 🎸
                         nerdiness=5,

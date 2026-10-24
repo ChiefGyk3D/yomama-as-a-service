@@ -13,6 +13,7 @@ from nio import AsyncClient, InviteEvent, MatrixRoom, RoomMessageText
 
 from ..config import get_config
 from ..yo_mama_generator import YoMamaGenerator
+from ._async import run_blocking
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +160,8 @@ class MatrixBot:
             return
         
         # Generate joke (no "generating" message to avoid leaving error messages)
-        joke = self.generator.generate_joke(
+        joke = await run_blocking(
+            self.generator.generate_joke,
             flavor=flavor,
             meanness=meanness,
             nerdiness=nerdiness
@@ -173,7 +175,7 @@ class MatrixBot:
     
     async def _cmd_random(self, room: MatrixRoom):
         """Handle !random command."""
-        joke = self.generator.random_joke()
+        joke = await run_blocking(self.generator.random_joke)
         await self._send_message(room, f"🎲 {joke}")
     
     async def _cmd_thegame(self, room: MatrixRoom, args: list | None = None):
@@ -188,7 +190,8 @@ class MatrixBot:
             target_name = "you"
             mention_text = f"{args[0]} "
         
-        joke = self.generator.generate_joke(
+        joke = await run_blocking(
+            self.generator.generate_joke,
             flavor="thegame",
             meanness=11,  # THESE GO TO ELEVEN! 🎸
             nerdiness=5,
@@ -214,7 +217,8 @@ class MatrixBot:
         
         await self._send_message(room, f"🔥 Generating {count} jokes...")
         
-        jokes = self.generator.generate_batch(
+        jokes = await run_blocking(
+            self.generator.generate_batch,
             count=count,
             flavor=flavor,
             meanness=self.config.default_meanness,
