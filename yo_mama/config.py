@@ -17,12 +17,22 @@ import os
 from dotenv import load_dotenv
 
 # Import our comprehensive secrets manager
-from .secrets import get_secret, load_secrets_from_doppler
+from .secrets import (
+    MissingSecretError,
+    get_secret,
+    is_placeholder,
+    load_secrets_from_doppler,
+)
 
 # Load .env file
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+
+def _id_list(raw: str | None) -> list[str]:
+    """Split a comma separated setting into trimmed, non-empty items."""
+    return [item.strip() for item in (raw or '').split(',') if item.strip()]
 
 
 class Config:
@@ -34,7 +44,7 @@ class Config:
     
     def __init__(self):
         # Check which secrets managers are available
-        self._has_doppler = bool(os.getenv('DOPPLER_TOKEN'))
+        self._has_doppler = not is_placeholder(os.getenv('DOPPLER_TOKEN'))
         self._secrets_manager = os.getenv('SECRETS_MANAGER', 'none').lower()
         
         if self._has_doppler:
@@ -132,8 +142,12 @@ class Config:
 
     @property
     def gemini_api_key(self) -> str | None:
-        """Get Google Gemini API key."""
-        return self.get_secret('GEMINI_API_KEY')
+        """Google Gemini API key, or None when unset, empty or a placeholder."""
+        value = self.get_secret('GEMINI_API_KEY')
+        if value and is_placeholder(value):
+            logger.warning("GEMINI_API_KEY is a placeholder; treating it as unset")
+            return None
+        return value or None
     
     @property
     def gemini_model(self) -> str:
@@ -160,6 +174,63 @@ class Config:
         """Get logging level."""
         return self.get_secret('LOG_LEVEL', 'INFO')
     
+    # Abuse controls (threat model t4 and t6). Conservative defaults.
+
+    @property
+    def rate_limit_cooldown(self) -> int:
+        """Seconds a user must wait between generations; 0 disables."""
+        return max(0, self.get_int('RATE_LIMIT_COOLDOWN_SECONDS', 10))
+
+    @property
+    def max_concurrent_generations(self) -> int:
+        """Generations allowed to run at once across all users (minimum 1)."""
+        return max(1, self.get_int('MAX_CONCURRENT_GENERATIONS', 2))
+
+    @property
+    def batch_max_count(self) -> int:
+        """Largest /batch size. Defaults to 5; never above the hard ceiling of 10."""
+        return min(10, max(1, self.get_int('BATCH_MAX_COUNT', 5)))
+
+    @property
+    def discord_guild_only(self) -> bool:
+        """Refuse Discord commands outside a server (no DMs)."""
+        return self.get_bool('DISCORD_GUILD_ONLY', True)
+
+    @property
+    def discord_allowed_guilds(self) -> list[str]:
+        """Guild ids allowed to use the bot; empty means any guild."""
+        return _id_list(self.get_secret('DISCORD_ALLOWED_GUILDS', ''))
+
+    @property
+    def discord_allowed_channels(self) -> list[str]:
+        """Channel ids allowed to use the bot; empty means any channel."""
+        return _id_list(self.get_secret('DISCORD_ALLOWED_CHANNELS', ''))
+
+    @property
+    def discord_optout_file(self) -> str | None:
+        """JSON file for the opt-out list; unset keeps it in memory only."""
+        return self.get_secret('DISCORD_OPTOUT_FILE', '') or None
+
+    @property
+    def matrix_auto_join(self) -> bool:
+        """Join rooms the bot is invited to (subject to the allowlist)."""
+        return self.get_bool('MATRIX_AUTO_JOIN', True)
+
+    @property
+    def matrix_auto_join_allowlist(self) -> list[str]:
+        """Matrix user ids (@u:server) or server names whose invites are accepted."""
+        return [item.lower() for item in _id_list(self.get_secret('MATRIX_AUTO_JOIN_ALLOWLIST', ''))]
+
+    @property
+    def matrix_auto_join_allow_all(self) -> bool:
+        """Accept every invite (the old behavior). Off unless set explicitly."""
+        return self.get_bool('MATRIX_AUTO_JOIN_ALLOW_ALL', False)
+
+    @property
+    def matrix_ignore_senders(self) -> list[str]:
+        """Matrix user ids whose messages are ignored (other bots)."""
+        return [item.lower() for item in _id_list(self.get_secret('MATRIX_IGNORE_SENDERS', ''))]
+
     def validate(self) -> tuple[bool, list[str]]:
         """
         Validate that all required configuration is present.
@@ -176,11 +247,18 @@ class Config:
         missing = []
 
         for key in required_keys:
-            if not self.get_secret(key):
+            if is_placeholder(self.get_secret(key)):
                 missing.append(key)
         
         is_valid = len(missing) == 0
         return is_valid, missing
+
+    def require_valid(self) -> None:
+        """Raise MissingSecretError naming each missing required key (never a value)."""
+        is_valid, missing = self.validate()
+        if not is_valid:
+            raise MissingSecretError(
+                f"Required secret(s) empty, unset or still a placeholder: {', '.join(missing)}")
 
 
 # Global config instance
