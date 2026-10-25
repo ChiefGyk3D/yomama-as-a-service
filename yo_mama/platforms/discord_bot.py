@@ -13,9 +13,29 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import get_config
+from ..guard import GenerationGuard, OptOutStore, Refused, audit
 from ..yo_mama_generator import YoMamaGenerator
+from ._async import run_blocking
 
 logger = logging.getLogger(__name__)
+
+# Nothing the model writes, and nothing a user types into /joke, may ping anyone.
+NO_MENTIONS = discord.AllowedMentions.none()
+
+# Commands that stay usable in a DM even when the bot is guild-only, so a person
+# can opt out without joining a server first.
+_DM_COMMANDS = frozenset({"optout", "optin"})
+
+
+class _GatedTree(app_commands.CommandTree):
+    """Command tree whose interaction_check is supplied by the bot (guild/channel gate)."""
+
+    gate = None
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if self.gate is None:
+            return True
+        return await self.gate(interaction)
 
 
 class DiscordBot:
@@ -41,8 +61,19 @@ class DiscordBot:
         self.bot = commands.Bot(
             command_prefix=self.config.get_config('DISCORD_PREFIX', '!'),
             intents=intents,
-            help_command=None
+            help_command=None,
+            allowed_mentions=NO_MENTIONS,
+            tree_cls=_GatedTree
         )
+
+        # Abuse controls (see README "Abuse controls")
+        self.guard = GenerationGuard(
+            cooldown_seconds=self.config.rate_limit_cooldown,
+            max_concurrent=self.config.max_concurrent_generations,
+        )
+        self.optout = OptOutStore(self.config.discord_optout_file)
+        self.bot.tree.gate = self._check_interaction
+        self.bot.check(self._check_text)
         
         # Initialize joke generator
         self.generator = YoMamaGenerator(
@@ -56,6 +87,42 @@ class DiscordBot:
         
         logger.info("Discord bot initialized")
     
+    def _place_allowed(self, guild_id, channel_id) -> bool:
+        """Guild-only and guild/channel allowlist gate. Ids only."""
+        if self.config.discord_guild_only and guild_id is None:
+            return False
+        guilds = self.config.discord_allowed_guilds
+        if guilds and str(guild_id) not in guilds:
+            return False
+        channels = self.config.discord_allowed_channels
+        return not (channels and str(channel_id) not in channels)
+
+    @staticmethod
+    def _audit(command, invoker_id, target_user, level, guild_id, channel_id):
+        """Audit line: ids and level only, never message text."""
+        audit("discord", command, invoker=invoker_id,
+              target=getattr(target_user, "id", None), level=level,
+              guild=guild_id, channel=channel_id)
+
+    async def _check_interaction(self, interaction: discord.Interaction) -> bool:
+        """Runs before every slash command."""
+        command = getattr(interaction, "command", None)
+        in_dm = interaction.guild_id is None
+        if in_dm and getattr(command, "name", None) in _DM_COMMANDS:
+            return True
+        if self._place_allowed(interaction.guild_id, interaction.channel_id):
+            return True
+        await interaction.response.send_message(
+            "This bot is not available here.", ephemeral=True, allowed_mentions=NO_MENTIONS)
+        return False
+
+    async def _check_text(self, ctx) -> bool:
+        """Global check for prefix commands: ignore other bots, apply the place gate."""
+        if ctx.author.bot:
+            return False
+        guild_id = ctx.guild.id if ctx.guild else None
+        return self._place_allowed(guild_id, ctx.channel.id)
+
     def _setup_events(self):
         """Setup Discord event handlers."""
         
@@ -75,13 +142,13 @@ class DiscordBot:
         @self.bot.event
         async def on_command_error(ctx, error):
             """Handle command errors."""
-            if isinstance(error, commands.CommandNotFound):
+            if isinstance(error, (commands.CommandNotFound, commands.CheckFailure)):
                 return
             elif isinstance(error, commands.MissingRequiredArgument):
-                await ctx.send(f'❌ Missing argument: {error.param.name}')
+                await ctx.send(f'❌ Missing argument: {error.param.name}', allowed_mentions=NO_MENTIONS)
             else:
                 logger.error(f'Command error: {error}')
-                await ctx.send(f'❌ An error occurred: {error!s}')
+                await ctx.send(f'❌ An error occurred: {error!s}', allowed_mentions=NO_MENTIONS)
     
     def _setup_commands(self):
         """Setup bot commands."""
@@ -123,11 +190,17 @@ class DiscordBot:
             try:
                 # Validate inputs
                 if meanness is not None and not (1 <= meanness <= 11):
-                    await interaction.followup.send("❌ Meanness must be between 1 and 11 (these go to eleven! 🎸)")
+                    await interaction.followup.send("❌ Meanness must be between 1 and 11 (these go to eleven! 🎸)", allowed_mentions=NO_MENTIONS)
                     return
                 
                 if nerdiness is not None and not (1 <= nerdiness <= 10):
-                    await interaction.followup.send("❌ Nerdiness must be between 1 and 10")
+                    await interaction.followup.send("❌ Nerdiness must be between 1 and 10", allowed_mentions=NO_MENTIONS)
+                    return
+                
+                # A person who opted out cannot be targeted
+                if user and self.optout.is_opted_out(user.id):
+                    await interaction.followup.send(
+                        "❌ That user has opted out of being roasted.", allowed_mentions=NO_MENTIONS)
                     return
                 
                 # Handle user mention (prepend to message)
@@ -135,12 +208,16 @@ class DiscordBot:
                 
                 # Special handling for "thegame" Easter egg
                 if flavor == "thegame":
-                    joke = self.generator.generate_joke(
-                        flavor="thegame",
-                        meanness=11,  # THESE GO TO ELEVEN! 🎸
-                        nerdiness=meanness or 5,  # Use meanness as nerdiness for thegame
-                        target_name=user.display_name if user else (target or "you")
-                    )
+                    async with self.guard.slot(str(interaction.user.id)):
+                        self._audit("joke", interaction.user.id, user, 11,
+                                    interaction.guild_id, interaction.channel_id)
+                        joke = await run_blocking(
+                            self.generator.generate_joke,
+                            flavor="thegame",
+                            meanness=11,  # THESE GO TO ELEVEN! 🎸
+                            nerdiness=meanness or 5,  # Use meanness as nerdiness for thegame
+                            target_name=user.display_name if user else (target or "you")
+                        )
                     embed = discord.Embed(
                         description=f"{mention_text}🎮💀 {joke}",
                         color=discord.Color.purple()
@@ -148,12 +225,17 @@ class DiscordBot:
                     embed.set_footer(text="You just lost The Game. Sorry! 😈")
                 else:
                     # Generate normal joke
-                    joke = self.generator.generate_joke(
-                        flavor=flavor or self.config.default_flavor,
-                        meanness=meanness or self.config.default_meanness,
-                        nerdiness=nerdiness or self.config.default_nerdiness,
-                        target_name=user.display_name if user else target
-                    )
+                    async with self.guard.slot(str(interaction.user.id)):
+                        self._audit("joke", interaction.user.id, user,
+                                    meanness or self.config.default_meanness,
+                                    interaction.guild_id, interaction.channel_id)
+                        joke = await run_blocking(
+                            self.generator.generate_joke,
+                            flavor=flavor or self.config.default_flavor,
+                            meanness=meanness or self.config.default_meanness,
+                            nerdiness=nerdiness or self.config.default_nerdiness,
+                            target_name=user.display_name if user else target
+                        )
                     
                     # Create embed
                     embed = discord.Embed(
@@ -169,11 +251,13 @@ class DiscordBot:
                     settings.append(f"Nerdiness: {nerdiness or self.config.default_nerdiness}/10")
                     embed.set_footer(text=" | ".join(settings))
                 
-                await interaction.followup.send(embed=embed)
+                await interaction.followup.send(embed=embed, allowed_mentions=NO_MENTIONS)
                 
+            except Refused as e:
+                await interaction.followup.send(f"⏳ {e}", allowed_mentions=NO_MENTIONS)
             except Exception as e:  # noqa: BLE001  # per-command handler; error is logged and reported
                 logger.error(f"Error generating joke: {e}")
-                await interaction.followup.send(f"❌ Failed to generate joke: {e!s}")
+                await interaction.followup.send(f"❌ Failed to generate joke: {e!s}", allowed_mentions=NO_MENTIONS)
         
         # Slash command: /random
         @self.bot.tree.command(name="random", description="Generate a random Yo Mama joke")
@@ -181,7 +265,10 @@ class DiscordBot:
             await interaction.response.defer(thinking=True)
             
             try:
-                joke = self.generator.random_joke()
+                async with self.guard.slot(str(interaction.user.id)):
+                    self._audit("random", interaction.user.id, None, None,
+                                interaction.guild_id, interaction.channel_id)
+                    joke = await run_blocking(self.generator.random_joke)
                 
                 embed = discord.Embed(
                     description=f"🎲 {joke}",
@@ -189,16 +276,18 @@ class DiscordBot:
                 )
                 embed.set_footer(text="Random joke with random settings")
                 
-                await interaction.followup.send(embed=embed)
+                await interaction.followup.send(embed=embed, allowed_mentions=NO_MENTIONS)
                 
+            except Refused as e:
+                await interaction.followup.send(f"⏳ {e}", allowed_mentions=NO_MENTIONS)
             except Exception as e:  # noqa: BLE001  # per-command handler; error is logged and reported
                 logger.error(f"Error generating random joke: {e}")
-                await interaction.followup.send(f"❌ Failed to generate joke: {e!s}")
+                await interaction.followup.send(f"❌ Failed to generate joke: {e!s}", allowed_mentions=NO_MENTIONS)
         
         # Slash command: /batch
         @self.bot.tree.command(name="batch", description="Generate multiple Yo Mama jokes")
         @app_commands.describe(
-            count="Number of jokes (1-10)",
+            count="Number of jokes (operator cap: BATCH_MAX_COUNT, default 5)",
             flavor="Joke flavor",
             meanness="How mean (1-11) - These go to eleven! 🎸",
             nerdiness="How nerdy (1-10)"
@@ -228,18 +317,25 @@ class DiscordBot:
             await interaction.response.defer(thinking=True)
             
             try:
-                # Validate count
-                if not (1 <= count <= 10):
-                    await interaction.followup.send("❌ Count must be between 1 and 10")
+                # Validate count against the operator's cap (BATCH_MAX_COUNT)
+                cap = self.config.batch_max_count
+                if not (1 <= count <= cap):
+                    await interaction.followup.send(
+                        f"❌ Count must be between 1 and {cap}", allowed_mentions=NO_MENTIONS)
                     return
                 
                 # Generate jokes
-                jokes = self.generator.generate_batch(
-                    count=count,
-                    flavor=flavor or self.config.default_flavor,
-                    meanness=meanness or self.config.default_meanness,
-                    nerdiness=nerdiness or self.config.default_nerdiness
-                )
+                async with self.guard.slot(str(interaction.user.id)):
+                    self._audit("batch", interaction.user.id, None,
+                                meanness or self.config.default_meanness,
+                                interaction.guild_id, interaction.channel_id)
+                    jokes = await run_blocking(
+                        self.generator.generate_batch,
+                        count=count,
+                        flavor=flavor or self.config.default_flavor,
+                        meanness=meanness or self.config.default_meanness,
+                        nerdiness=nerdiness or self.config.default_nerdiness
+                    )
                 
                 # Create embed
                 embed = discord.Embed(
@@ -262,12 +358,30 @@ class DiscordBot:
                 settings.append(f"N: {nerdiness or self.config.default_nerdiness}")
                 embed.set_footer(text=" | ".join(settings))
                 
-                await interaction.followup.send(embed=embed)
+                await interaction.followup.send(embed=embed, allowed_mentions=NO_MENTIONS)
                 
+            except Refused as e:
+                await interaction.followup.send(f"⏳ {e}", allowed_mentions=NO_MENTIONS)
             except Exception as e:  # noqa: BLE001  # per-command handler; error is logged and reported
                 logger.error(f"Error generating batch: {e}")
-                await interaction.followup.send(f"❌ Failed to generate jokes: {e!s}")
+                await interaction.followup.send(f"❌ Failed to generate jokes: {e!s}", allowed_mentions=NO_MENTIONS)
         
+        # Slash commands: /optout and /optin (the only way to be left out of /joke user:)
+        @self.bot.tree.command(name="optout", description="Stop people from targeting you with /joke")
+        async def optout_slash(interaction: discord.Interaction):
+            self.optout.add(interaction.user.id)
+            audit("discord", "optout", invoker=interaction.user.id)
+            await interaction.response.send_message(
+                "✅ You are opted out. Nobody can target you with /joke.",
+                ephemeral=True, allowed_mentions=NO_MENTIONS)
+
+        @self.bot.tree.command(name="optin", description="Allow people to target you with /joke again")
+        async def optin_slash(interaction: discord.Interaction):
+            self.optout.remove(interaction.user.id)
+            audit("discord", "optin", invoker=interaction.user.id)
+            await interaction.response.send_message(
+                "✅ You are opted back in.", ephemeral=True, allowed_mentions=NO_MENTIONS)
+
         # Slash command: /flavors
         @self.bot.tree.command(name="flavors", description="List available joke flavors")
         async def flavors_slash(interaction: discord.Interaction):
@@ -279,7 +393,7 @@ class DiscordBot:
                 color=discord.Color.blue()
             )
             
-            await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(embed=embed, allowed_mentions=NO_MENTIONS)
         
         # Slash command: /help
         @self.bot.tree.command(name="help", description="Show help for Yo Mama Bot")
@@ -299,7 +413,7 @@ class DiscordBot:
                     "`/random`\n"
                     "Generate a completely random joke\n\n"
                     "`/batch [count] [flavor] [meanness] [nerdiness]`\n"
-                    "Generate multiple jokes (1-10)\n\n"
+                    "Generate multiple jokes (default max 5)\n\n"
                     "`/flavors`\n"
                     "List all available joke flavors\n\n"
                     "`/help`\n"
@@ -358,7 +472,7 @@ class DiscordBot:
             
             embed.set_footer(text=f"Prefix: {self.bot.command_prefix} | Powered by Google Gemini")
             
-            await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(embed=embed, allowed_mentions=NO_MENTIONS)
         
         # Text command: !joke (for backwards compatibility)
         @self.bot.command(name='joke')
@@ -366,31 +480,41 @@ class DiscordBot:
             """Generate a Yo Mama joke (text command)"""
             async with ctx.typing():
                 try:
-                    logger.info(f"Text command received: flavor='{flavor}', type={type(flavor)}")
+                    logger.info("Text command received: flavor=%r", flavor)
                     # Special handling for "thegame" Easter egg
                     if flavor and flavor.lower() == "thegame":
-                        joke = self.generator.generate_joke(
-                            flavor="thegame",
-                            meanness=10,  # Always maximum savage
-                            nerdiness=5,
-                            target_name=None
-                        )
+                        async with self.guard.slot(str(ctx.author.id)):
+                            self._audit("joke", ctx.author.id, None, 10,
+                                        ctx.guild.id if ctx.guild else None, ctx.channel.id)
+                            joke = await run_blocking(
+                                self.generator.generate_joke,
+                                flavor="thegame",
+                                meanness=10,  # Always maximum savage
+                                nerdiness=5,
+                                target_name=None
+                            )
                         embed = discord.Embed(
                             description=f"🎮💀 {joke}",
                             color=discord.Color.purple()
                         )
                         embed.set_footer(text="You just lost The Game. Sorry! 😈")
-                        await ctx.send(embed=embed)
+                        await ctx.send(embed=embed, allowed_mentions=NO_MENTIONS)
                     else:
-                        joke = self.generator.generate_joke(
-                            flavor=flavor,
-                            meanness=meanness,
-                            nerdiness=nerdiness
-                        )
-                        await ctx.send(f"🎤 {joke}")
+                        async with self.guard.slot(str(ctx.author.id)):
+                            self._audit("joke", ctx.author.id, None, meanness,
+                                        ctx.guild.id if ctx.guild else None, ctx.channel.id)
+                            joke = await run_blocking(
+                                self.generator.generate_joke,
+                                flavor=flavor,
+                                meanness=meanness,
+                                nerdiness=nerdiness
+                            )
+                        await ctx.send(f"🎤 {joke}", allowed_mentions=NO_MENTIONS)
+                except Refused as e:
+                    await ctx.send(f"⏳ {e}", allowed_mentions=NO_MENTIONS)
                 except Exception as e:  # noqa: BLE001  # per-command handler; error is logged and reported
                     logger.error(f"Error generating joke: {e}")
-                    await ctx.send(f"❌ Error: {e!s}")
+                    await ctx.send(f"❌ Error: {e!s}", allowed_mentions=NO_MENTIONS)
         
         # Text command: !random
         @self.bot.command(name='random')
@@ -398,11 +522,16 @@ class DiscordBot:
             """Generate a random joke (text command)"""
             async with ctx.typing():
                 try:
-                    joke = self.generator.random_joke()
-                    await ctx.send(f"🎲 {joke}")
+                    async with self.guard.slot(str(ctx.author.id)):
+                        self._audit("random", ctx.author.id, None, None,
+                                    ctx.guild.id if ctx.guild else None, ctx.channel.id)
+                        joke = await run_blocking(self.generator.random_joke)
+                    await ctx.send(f"🎲 {joke}", allowed_mentions=NO_MENTIONS)
+                except Refused as e:
+                    await ctx.send(f"⏳ {e}", allowed_mentions=NO_MENTIONS)
                 except Exception as e:  # noqa: BLE001  # per-command handler; error is logged and reported
                     logger.error(f"Error generating random joke: {e}")
-                    await ctx.send(f"❌ Error: {e!s}")
+                    await ctx.send(f"❌ Error: {e!s}", allowed_mentions=NO_MENTIONS)
         
         # Text command: !thegame (Easter egg)
         @self.bot.command(name='thegame')
@@ -410,21 +539,27 @@ class DiscordBot:
             """You just lost The Game! (Easter egg)"""
             async with ctx.typing():
                 try:
-                    joke = self.generator.generate_joke(
-                        flavor="thegame",
-                        meanness=11,  # THESE GO TO ELEVEN! 🎸
-                        nerdiness=5,
-                        target_name=None
-                    )
+                    async with self.guard.slot(str(ctx.author.id)):
+                        self._audit("thegame", ctx.author.id, None, 11,
+                                    ctx.guild.id if ctx.guild else None, ctx.channel.id)
+                        joke = await run_blocking(
+                            self.generator.generate_joke,
+                            flavor="thegame",
+                            meanness=11,  # THESE GO TO ELEVEN! 🎸
+                            nerdiness=5,
+                            target_name=None
+                        )
                     embed = discord.Embed(
                         description=f"🎮💀 {joke}",
                         color=discord.Color.purple()
                     )
                     embed.set_footer(text="You just lost The Game. Sorry! 😈")
-                    await ctx.send(embed=embed)
+                    await ctx.send(embed=embed, allowed_mentions=NO_MENTIONS)
+                except Refused as e:
+                    await ctx.send(f"⏳ {e}", allowed_mentions=NO_MENTIONS)
                 except Exception as e:  # noqa: BLE001  # per-command handler; error is logged and reported
                     logger.error(f"Error generating thegame joke: {e}")
-                    await ctx.send(f"❌ Error: {e!s}")
+                    await ctx.send(f"❌ Error: {e!s}", allowed_mentions=NO_MENTIONS)
         
         # Text command: help
         @self.bot.command(name='help')
@@ -490,14 +625,14 @@ class DiscordBot:
             
             embed.set_footer(text="Powered by Google Gemini | Slash commands also available: /help")
             
-            await ctx.send(embed=embed)
+            await ctx.send(embed=embed, allowed_mentions=NO_MENTIONS)
         
         # Text command: !flavors
         @self.bot.command(name='flavors')
         async def flavors_text(ctx):
             """List available flavors (text command)"""
             flavors = YoMamaGenerator.list_flavors()
-            await ctx.send("📋 Available flavors:\n" + ", ".join(flavors))
+            await ctx.send("📋 Available flavors:\n" + ", ".join(flavors), allowed_mentions=NO_MENTIONS)
     
     def run(self):
         """Run the Discord bot."""
@@ -539,7 +674,7 @@ class DiscordBot:
                 if footer_parts:
                     embed.set_footer(text=" | ".join(footer_parts))
             
-            await webhook.send(embed=embed, username="Yo Mama Bot")
+            await webhook.send(embed=embed, username="Yo Mama Bot", allowed_mentions=NO_MENTIONS)
             logger.info("Posted joke to webhook")
             
         except Exception as e:

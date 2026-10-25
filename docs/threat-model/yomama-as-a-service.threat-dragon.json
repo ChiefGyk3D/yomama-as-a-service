@@ -1,0 +1,891 @@
+{
+  "version": "2.6.2",
+  "summary": {
+    "title": "YoMama-as-a-Service threat model",
+    "owner": "",
+    "description": "Threat model for the Discord and Matrix bots (and CLI) that generate Yo Mama jokes through hypeman-social (Gemini or Ollama). There is no HTTP server in this repo: callers are chat users reaching the bots through Discord and Matrix. Every cell cites what was read in the repo; items prefixed UNVERIFIED were not confirmed."
+  },
+  "detail": {
+    "diagrams": [
+      {
+        "id": 0,
+        "title": "Bots, LLM backends, secrets and pipeline",
+        "diagramType": "STRIDE",
+        "cells": [
+          {
+            "id": "b1",
+            "shape": "trust-boundary-box",
+            "data": {
+              "name": "Internet: chat platforms and users (untrusted)",
+              "description": "Anyone who can message the bot on Discord or invite it on Matrix. Content here is untrusted."
+            },
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "size": {
+              "width": 420,
+              "height": 760
+            }
+          },
+          {
+            "id": "b2",
+            "shape": "trust-boundary-box",
+            "data": {
+              "name": "Bot runtime (container or systemd service, trusted)",
+              "description": "The process running main.py with --discord/--matrix and its secrets in memory."
+            },
+            "position": {
+              "x": 480,
+              "y": 0
+            },
+            "size": {
+              "width": 780,
+              "height": 760
+            }
+          },
+          {
+            "id": "b3",
+            "shape": "trust-boundary-box",
+            "data": {
+              "name": "LLM backends (third party or LAN)",
+              "description": "Google Gemini API and/or an Ollama server chosen by configuration."
+            },
+            "position": {
+              "x": 1320,
+              "y": 0
+            },
+            "size": {
+              "width": 300,
+              "height": 360
+            }
+          },
+          {
+            "id": "b4",
+            "shape": "trust-boundary-box",
+            "data": {
+              "name": "Secrets stores",
+              "description": "Doppler (and optional AWS/Vault), .env file, container environment."
+            },
+            "position": {
+              "x": 1320,
+              "y": 400
+            },
+            "size": {
+              "width": 300,
+              "height": 360
+            }
+          },
+          {
+            "id": "b5",
+            "shape": "trust-boundary-box",
+            "data": {
+              "name": "Build and release pipeline",
+              "description": "GitHub Actions calling the shared workflows, GHCR image."
+            },
+            "position": {
+              "x": 0,
+              "y": 820
+            },
+            "size": {
+              "width": 1260,
+              "height": 260
+            }
+          },
+          {
+            "id": "a1",
+            "shape": "actor",
+            "data": {
+              "name": "Discord users",
+              "description": "Any guild member (or DM user) who can run the slash or prefix commands in discord_bot.py. Untrusted.",
+              "threats": []
+            },
+            "position": {
+              "x": 60,
+              "y": 80
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "a2",
+            "shape": "actor",
+            "data": {
+              "name": "Matrix users",
+              "description": "Any Matrix user in a room the bot is in. Invites are accepted only from MATRIX_AUTO_JOIN_ALLOWLIST users or servers unless MATRIX_AUTO_JOIN_ALLOW_ALL is set (matrix_bot.py:_invite_allowed). Untrusted.",
+              "threats": []
+            },
+            "position": {
+              "x": 60,
+              "y": 320
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "a3",
+            "shape": "actor",
+            "data": {
+              "name": "Operator",
+              "description": "Runs main.py (CLI, interactive, --discord, --matrix), docker compose, scripts/*.sh. Trusted.",
+              "threats": []
+            },
+            "position": {
+              "x": 60,
+              "y": 560
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "p1",
+            "shape": "process",
+            "data": {
+              "name": "Discord bot",
+              "description": "yo_mama/platforms/discord_bot.py: slash commands /joke /random /batch /flavors /help and prefix commands.",
+              "threats": [
+                {
+                  "id": "t4",
+                  "number": 4,
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Elevation of privilege",
+                  "title": "Harassment tool: any member can aim maximum-cruelty output at a named user (reduced, still open)",
+                  "description": "Which boundary: untrusted chat users to a public-posting bot. /joke takes a `user` option and a `meanness` of up to 11 (discord_bot.py:joke_slash; matrix_bot.py:_cmd_joke accepts 1-11). yo_mama_generator.py:_build_prompt level 11 tells the model to be 'genuinely offensive and shocking' and 'emotionally destructive and leave lasting damage', and the thegame flavor is forced to level 11. Offensive output is the product. Reduced now: Discord commands are refused in DMs by default (DISCORD_GUILD_ONLY) and can be limited to listed guilds and channels (DISCORD_ALLOWED_GUILDS, DISCORD_ALLOWED_CHANNELS); a person can run /optout and then /joke user: (including the thegame flavor) refuses to target them; sends use allowed_mentions with nothing parsed so output cannot ping anyone; every generation writes an ids-only audit line (t10); the cooldown and concurrency cap limit how often (t6). Still open: the level cap is a product-policy choice and is unchanged (level 11 is reachable by anyone allowed to use the bot, against anyone who has not opted out); the opt-out covers only the Discord `user` option, not the free-text `target` name, a display name, or Matrix `!thegame @user` (there is no Matrix opt-out); the default opt-out list is in memory unless DISCORD_OPTOUT_FILE is set, so a restart forgets it; with empty allowlists any guild that invites the bot can use it; there is still no content filter on the result (t3). Needs a maintainer decision on a level cap and on a Matrix opt-out.",
+                  "mitigation": "Partial only, status stays Open. Implemented: discord_bot.py:_check_interaction/_check_text/_place_allowed (guild-only, allowlists), discord_bot.py:joke_slash (opt-out refusal), optout_slash/optin_slash, guard.py:OptOutStore, NO_MENTIONS on every send, discord_bot.py:_audit. Tests: tests/test_abuse_controls.py (test_guild_only_blocks_dm_by_default, test_guild_and_channel_allowlists, test_opted_out_user_is_not_targeted, test_opted_out_user_is_not_targeted_by_thegame, test_optout_and_optin_commands, test_optout_persists_to_configured_file, test_sends_never_parse_mentions, test_client_default_allowed_mentions_is_none, test_guild_only_and_allowlist_apply_to_text_commands), tests/test_guard.py (TestOptOutStore)."
+                },
+                {
+                  "id": "t7",
+                  "number": 7,
+                  "status": "Mitigated",
+                  "severity": "High",
+                  "type": "Denial of service",
+                  "title": "One slow or retrying LLM call freezes the whole bot (blocking calls inside the event loop)",
+                  "description": "Before the fix, discord_bot.py (joke_slash, random_slash, batch_slash, joke_text, random_text, thegame_text) and matrix_bot.py (_cmd_joke, _cmd_random, _cmd_thegame, _cmd_batch) called the synchronous YoMamaGenerator methods directly inside async handlers. The library sleeps with time.sleep between retries (hypeman-social v0.3.4 base.py), and an Ollama model can take many seconds per call, so one /batch 10 stalled the Discord gateway heartbeat and the Matrix sync loop for every user. Any member could repeat it.",
+                  "mitigation": "Every generator call from an async handler now goes through asyncio.to_thread via yo_mama/platforms/_async.py:run_blocking (used in discord_bot.py and matrix_bot.py), so the event loop stays responsive. Test: tests/test_nonblocking.py. This does not rate-limit callers (see t6)."
+                }
+              ]
+            },
+            "position": {
+              "x": 520,
+              "y": 80
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "p2",
+            "shape": "process",
+            "data": {
+              "name": "Matrix bot",
+              "description": "yo_mama/platforms/matrix_bot.py: prefix commands over matrix-nio sync; auto-join on invite.",
+              "threats": [
+                {
+                  "id": "t10",
+                  "number": 10,
+                  "status": "Mitigated",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "title": "No audit trail of who asked for what",
+                  "description": "Before the fix Discord handlers logged no invoking user, guild, channel or target, and Matrix logged only command, sender and room. Now each generation writes one line on the yo_mama.audit logger: platform, command, invoker id, target id, meanness level, guild and channel or room (guard.py:audit; discord_bot.py:_audit; matrix_bot.py:_audit), after admission, so refused requests are not logged as generations. The line holds ids and the level only, never message text, arguments, display names or tokens. Residual risk, accepted: the generated text is deliberately not logged, so a posted message is tied to an invocation by time, channel and invoker only; the lines go to the process log (stdout or the journal) with no retention or tamper protection of their own; the free-text `target` name is not recorded.",
+                  "mitigation": "yo_mama/guard.py:audit, called from discord_bot.py:_audit (joke_slash, random_slash, batch_slash, text commands, optout/optin) and matrix_bot.py:_audit (from _handle_message). Tests: tests/test_guard.py::TestAudit, tests/test_abuse_controls.py::test_audit_line_has_ids_only (Discord and Matrix variants, asserting free text and display names are absent), test_no_audit_or_generation_for_refused_requests."
+                }
+              ]
+            },
+            "position": {
+              "x": 520,
+              "y": 320
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "p3",
+            "shape": "process",
+            "data": {
+              "name": "YoMamaGenerator",
+              "description": "yo_mama/yo_mama_generator.py: validates flavor, clamps levels, builds the prompt, calls the LLM engine, returns text or a canned fallback.",
+              "threats": [
+                {
+                  "id": "t1",
+                  "number": 1,
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "title": "Prompt injection through the free-text /joke target",
+                  "description": "Boundary: Discord users to the prompt builder. yo_mama/platforms/discord_bot.py:joke_slash passes the free-text `target` option straight to YoMamaGenerator.generate_joke(target_name=...). yo_mama/yo_mama_generator.py:_build_prompt interpolates it three times into the prompt (TARGET line and the 'Start with ...' requirement) with no length cap, newline stripping or quote handling, and the prompt has no separation between instructions and user data. Any guild member who can run the command can add instructions to the model. The same applies to the CLI --target option (main.py), which is operator-only. Impact is bounded by what the model can do: it only produces text (see t3 for where that text goes).",
+                  "mitigation": ""
+                },
+                {
+                  "id": "t11",
+                  "number": 11,
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Information disclosure",
+                  "title": "Gemini API key is copied into the process environment",
+                  "description": "yo_mama/yo_mama_generator.py:__init__ sets os.environ['GEMINI_API_KEY'] from the api_key argument when the variable is unset, to bridge into hypeman-social's config. The key is then inherited by any child process and readable from the process environment by the same user. The bot starts no child processes in the code read.",
+                  "mitigation": ""
+                }
+              ]
+            },
+            "position": {
+              "x": 760,
+              "y": 200
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "p4",
+            "shape": "process",
+            "data": {
+              "name": "hypeman-social LLMManager",
+              "description": "Library (hypeman-social==0.3.4, hash-locked): provider selection, retries with sleep, failover between Gemini and Ollama.",
+              "threats": [
+                {
+                  "id": "t13",
+                  "number": 13,
+                  "status": "Mitigated",
+                  "severity": "Medium",
+                  "type": "Elevation of privilege",
+                  "title": "Chat users steering the bot to an arbitrary LLM or internal host (SSRF-style reach)",
+                  "description": "The Ollama host, port and model, and the provider order, come from configuration. No chat input reaches them.",
+                  "mitigation": "Host and provider are read only from environment/secrets configuration (docker-compose.yml LLM_OLLAMA_HOST, LLM_PROVIDER; config.py:llm_provider; hypeman-social v0.3.4 ollama.py reads host via provider_config/get_config). The command handlers pass only flavor, meanness, nerdiness and target into generate_joke, and flavor is checked against the FLAVORS allowlist. The model call has no tool or URL-fetch ability in this code. Residual: container egress is unrestricted (t17)."
+                }
+              ]
+            },
+            "position": {
+              "x": 1000,
+              "y": 200
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "p5",
+            "shape": "process",
+            "data": {
+              "name": "CLI and config loader",
+              "description": "main.py (argparse, interactive) and yo_mama/config.py + secrets.py (Doppler, AWS, Vault, .env lookup).",
+              "threats": [
+                {
+                  "id": "t15",
+                  "number": 15,
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Information disclosure",
+                  "title": "Matrix homeserver URL may be plain http, and secrets-manager errors are logged with message text",
+                  "description": "matrix_bot.py:__init__ adds https:// only when no scheme is present, so an operator-set http:// URL sends the access token or password in cleartext. yo_mama/secrets.py:load_secrets_from_doppler logs f'{type(e).__name__}: {e}' on failure (lines 145-146, 152), and each get_secret call lists the whole Doppler config into the process (line 114-133, 218) although only a few keys are needed. A fetch error message is third-party text.",
+                  "mitigation": ""
+                }
+              ]
+            },
+            "position": {
+              "x": 760,
+              "y": 460
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "e1",
+            "shape": "actor",
+            "data": {
+              "name": "Discord platform",
+              "description": "Discord gateway and API; delivers interactions and messages, receives embeds.",
+              "threats": []
+            },
+            "position": {
+              "x": 280,
+              "y": 160
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "e2",
+            "shape": "actor",
+            "data": {
+              "name": "Matrix homeserver",
+              "description": "Homeserver named by MATRIX_HOMESERVER (default matrix.org); URL may be http://.",
+              "threats": []
+            },
+            "position": {
+              "x": 280,
+              "y": 400
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "e3",
+            "shape": "actor",
+            "data": {
+              "name": "Google Gemini API",
+              "description": "Default provider (LLM_PROVIDER=gemini); receives the full prompt.",
+              "threats": []
+            },
+            "position": {
+              "x": 1380,
+              "y": 80
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "e4",
+            "shape": "actor",
+            "data": {
+              "name": "Ollama server",
+              "description": "Optional provider (LLM_PROVIDER=ollama or fallback); host from LLM_OLLAMA_HOST; http by default.",
+              "threats": []
+            },
+            "position": {
+              "x": 1380,
+              "y": 220
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "s1",
+            "shape": "store",
+            "data": {
+              "name": ".env and container environment",
+              "description": "Bot tokens, API keys, DOPPLER_TOKEN; written by scripts/create-secrets.sh with chmod 600; passed as env by docker-compose.yml.",
+              "threats": [
+                {
+                  "id": "t14",
+                  "number": 14,
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "title": "Bot credentials (Discord token, Matrix token or password, Gemini key, Doppler token) live in environment variables",
+                  "description": "docker-compose.yml passes DISCORD_BOT_TOKEN, MATRIX_ACCESS_TOKEN, MATRIX_PASSWORD, GEMINI_API_KEY and DOPPLER_TOKEN as container environment variables, readable by anyone who can run docker inspect on the host. scripts/install-yomama.sh uses EnvironmentFile=<project>/.env in a systemd unit; scripts/create-secrets.sh sets chmod 600 on the .env it writes (lines 928 and 1091). Theft of the Discord token or Matrix token lets an attacker post as the bot with no LLM involved. Doppler/AWS/Vault paths are optional (config.py, secrets.py).",
+                  "mitigation": ""
+                }
+              ]
+            },
+            "position": {
+              "x": 1380,
+              "y": 460
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "e5",
+            "shape": "actor",
+            "data": {
+              "name": "Doppler / AWS / Vault",
+              "description": "Optional secrets managers read by yo_mama/secrets.py.",
+              "threats": []
+            },
+            "position": {
+              "x": 1380,
+              "y": 600
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "p6",
+            "shape": "process",
+            "data": {
+              "name": "CI and release workflows",
+              "description": ".github/workflows/*.yml calling git-your-ship-together reusable workflows, pinned by SHA; egress-policy block.",
+              "threats": [
+                {
+                  "id": "t16",
+                  "number": 16,
+                  "status": "Mitigated",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "title": "Build and dependency supply chain",
+                  "description": "A poisoned dependency, base image or workflow would run with the bot token.",
+                  "mitigation": "Dockerfile installs with pip --require-hashes -r requirements.txt (every package hash-pinned, including hypeman-social==0.3.4); both Dockerfile stages pin python:3.14-slim by digest; the final image drops pip. .github/workflows/*.yml call the shared workflows pinned to a full commit SHA with a version comment; .github/dependabot.yml sets a 7-day cooldown for uv, docker and github-actions updates; ci.yml, security.yml and release.yml set egress-policy: block. Residual: signing and attestation steps are in the shared workflows (t18)."
+                }
+              ]
+            },
+            "position": {
+              "x": 200,
+              "y": 900
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "s2",
+            "shape": "store",
+            "data": {
+              "name": "GHCR image",
+              "description": "ghcr.io image built from Dockerfile (digest-pinned base, hash-locked requirements, non-root).",
+              "threats": [
+                {
+                  "id": "t20",
+                  "number": 20,
+                  "status": "Mitigated",
+                  "severity": "Low",
+                  "type": "Elevation of privilege",
+                  "title": "Running as root inside the container",
+                  "description": "A container escape or file write as root is more damaging.",
+                  "mitigation": "Dockerfile creates a yomama user (UID/GID 1000), copies the application with --chown, and sets USER 1000:1000 before CMD; docker-compose.yml mounts no volumes."
+                }
+              ]
+            },
+            "position": {
+              "x": 520,
+              "y": 900
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "p7",
+            "shape": "process",
+            "data": {
+              "name": "Container runtime",
+              "description": "docker-compose.yml services yomama-discord and yomama-matrix (bridge network, no volumes, no hardening options).",
+              "threats": [
+                {
+                  "id": "t17",
+                  "number": 17,
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Elevation of privilege",
+                  "title": "Container and service hardening gaps",
+                  "description": "Dockerfile runs as USER 1000:1000 (good). docker-compose.yml sets no read_only, cap_drop, no-new-privileges, memory or pids limits, and the bridge network has unrestricted egress. The systemd unit generated by scripts/install-yomama.sh has no hardening directives (no NoNewPrivileges, ProtectSystem and so on). A compromise of the bot process can reach any network the host can.",
+                  "mitigation": ""
+                },
+                {
+                  "id": "t19",
+                  "number": 19,
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Denial of service",
+                  "title": "The container health check always passes",
+                  "description": "Dockerfile HEALTHCHECK and the docker-compose.yml healthchecks run python -c 'import sys; sys.exit(0)', which succeeds whether or not the Discord or Matrix client is connected. A crashed login or a stuck sync loop looks healthy; restart: unless-stopped only restarts on process exit.",
+                  "mitigation": ""
+                }
+              ]
+            },
+            "position": {
+              "x": 840,
+              "y": 900
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            }
+          },
+          {
+            "id": "f1",
+            "shape": "flow",
+            "source": {
+              "cell": "a1"
+            },
+            "target": {
+              "cell": "e1"
+            },
+            "data": {
+              "name": "Commands to Discord",
+              "description": "Slash options (flavor, meanness, nerdiness, target, user) and prefix messages.",
+              "threats": []
+            }
+          },
+          {
+            "id": "f2",
+            "shape": "flow",
+            "source": {
+              "cell": "e1"
+            },
+            "target": {
+              "cell": "p1"
+            },
+            "data": {
+              "name": "Interactions and messages to bot",
+              "description": "Free-text target and display names arrive here (t1, t2); per-user cooldown and a global concurrency cap apply before generation (guard.py:GenerationGuard; t6).",
+              "threats": []
+            }
+          },
+          {
+            "id": "f3",
+            "shape": "flow",
+            "source": {
+              "cell": "p1"
+            },
+            "target": {
+              "cell": "e1"
+            },
+            "data": {
+              "name": "Embeds and messages out",
+              "description": "LLM output and raw exception text are posted (t3, t8).",
+              "threats": [
+                {
+                  "id": "t8",
+                  "number": 8,
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information disclosure",
+                  "title": "Raw exception text is echoed into the public channel",
+                  "description": "discord_bot.py:joke_slash/random_slash/batch_slash/joke_text/random_text/thegame_text and on_command_error send f'... {e!s}' to the channel, and matrix_bot.py:_handle_message does the same for any exception (a non-numeric meanness in !joke raises ValueError from int() and is echoed). What an exception string contains depends on the Discord, Matrix, Gemini and Ollama client libraries. UNVERIFIED: whether any of them put a host name, URL or key fragment in an exception message; none was seen in the repo's own code.",
+                  "mitigation": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "f4",
+            "shape": "flow",
+            "source": {
+              "cell": "a2"
+            },
+            "target": {
+              "cell": "e2"
+            },
+            "data": {
+              "name": "Messages and invites",
+              "description": "Prefix commands in rooms; invites to the bot.",
+              "threats": []
+            }
+          },
+          {
+            "id": "f5",
+            "shape": "flow",
+            "source": {
+              "cell": "e2"
+            },
+            "target": {
+              "cell": "p2"
+            },
+            "data": {
+              "name": "Events to bot",
+              "description": "RoomMessageText and InviteEvent; auto-join by default (t6).",
+              "threats": [
+                {
+                  "id": "t6",
+                  "number": 6,
+                  "status": "Mitigated",
+                  "severity": "High",
+                  "type": "Denial of service",
+                  "title": "Unbounded use of the shared LLM quota: no rate limit, cooldown or invite allowlist",
+                  "description": "Which boundary: untrusted chat users to the LLM backends (Gemini key or Ollama host). Before the fix there was no cooldown, per-user limit or allowlist; /batch allowed 10 generations per command with up to 3 library attempts each (hypeman-social v0.3.4 base.py); MATRIX_AUTO_JOIN defaulted to true and joined any invite; the Matrix bot reacted to any sender with the prefix. Now bounded in-process: a per-user cooldown (RATE_LIMIT_COOLDOWN_SECONDS, default 10) and a global cap on concurrent generations (MAX_CONCURRENT_GENERATIONS, default 2), a /batch cap (BATCH_MAX_COUNT, default 5, hard ceiling 10), Matrix invites accepted only from an allowlist (empty allowlist joins nothing unless MATRIX_AUTO_JOIN_ALLOW_ALL=true), and messages from other bots ignored. Residual risk, accepted: the cooldown is per account, so many accounts can still reach the concurrency cap; there is no daily or monthly budget, so total spend over time is bounded by rate only; an attacker who holds both slots can starve other users (they are told the bot is busy); cooldown state is in memory and resets on restart; Matrix has no bot flag, so a foreign bot is ignored only if listed in MATRIX_IGNORE_SENDERS or if it is another instance of this bot; operators who set MATRIX_AUTO_JOIN_ALLOW_ALL=true or list a whole server accept its users' invites.",
+                  "mitigation": "yo_mama/guard.py:GenerationGuard.slot (cooldown, concurrency cap) used in discord_bot.py:joke_slash/random_slash/batch_slash/joke_text/random_text/thegame_text and matrix_bot.py:_handle_message; config.py:batch_max_count with discord_bot.py:batch_slash and matrix_bot.py:_cmd_batch; matrix_bot.py:_invite_allowed/_handle_invite (allowlist, default joins nothing); discord_bot.py:_check_text (bot authors ignored) and matrix_bot.py:_handle_message (BOT_MARKER and MATRIX_IGNORE_SENDERS). Tests: tests/test_guard.py (TestCooldown, TestConcurrency), tests/test_abuse_controls.py (test_cooldown_blocks_second_joke_and_skips_generation, test_concurrency_cap_refuses_extra_generation, test_batch_default_cap_is_five, test_batch_cap_is_configurable_and_hard_limited_to_ten, test_other_bots_are_ignored, test_auto_join_default_joins_nobody, test_allowlist_matches_user_id_and_server_name, test_allow_all_setting_keeps_old_behavior, test_cooldown_per_sender, test_concurrency_cap, test_configured_ignore_senders, test_messages_from_other_yomama_instances_are_ignored). Settings documented in README.md 'Abuse controls'."
+                }
+              ]
+            }
+          },
+          {
+            "id": "f6",
+            "shape": "flow",
+            "source": {
+              "cell": "p2"
+            },
+            "target": {
+              "cell": "e2"
+            },
+            "data": {
+              "name": "Replies out",
+              "description": "m.room.message with formatted_body built from LLM text and user flavor (t5).",
+              "threats": [
+                {
+                  "id": "t5",
+                  "number": 5,
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "title": "Matrix HTML injection: model output and the user-chosen flavor are placed unescaped in formatted_body",
+                  "description": "yo_mama/platforms/matrix_bot.py:_send_message(html=True) builds formatted_body by replacing newlines and nothing else. _cmd_joke puts LLM text and the raw user-supplied `flavor` argument (shown in the settings line) into it; _cmd_batch puts each joke in it. A sender can inject allowed HTML tags (for example spoofed links or images) that clients render as coming from the bot. Matrix clients are required to sanitize formatted_body, which limits the damage to markup the client allows. No html.escape call exists in yo_mama/.",
+                  "mitigation": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "f7",
+            "shape": "flow",
+            "source": {
+              "cell": "p1"
+            },
+            "target": {
+              "cell": "p3"
+            },
+            "data": {
+              "name": "generate_joke calls",
+              "description": "flavor, meanness, nerdiness, target_name from Discord.",
+              "threats": [
+                {
+                  "id": "t2",
+                  "number": 2,
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Tampering",
+                  "title": "Second-order injection through another user's display name",
+                  "description": "yo_mama/platforms/discord_bot.py:joke_slash uses `user.display_name` of the mentioned user as target_name, which reaches _build_prompt unfiltered. A user controls their own nickname and display name, so a name can carry instruction text that fires when someone else runs /joke user:<them>. The Matrix !thegame path uses the fixed word 'you' as target instead (matrix_bot.py:_cmd_thegame), so it is not affected.",
+                  "mitigation": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "f8",
+            "shape": "flow",
+            "source": {
+              "cell": "p2"
+            },
+            "target": {
+              "cell": "p3"
+            },
+            "data": {
+              "name": "generate_joke calls",
+              "description": "flavor, meanness, nerdiness from Matrix; target fixed to 'you' or None.",
+              "threats": []
+            }
+          },
+          {
+            "id": "f9",
+            "shape": "flow",
+            "source": {
+              "cell": "p3"
+            },
+            "target": {
+              "cell": "p4"
+            },
+            "data": {
+              "name": "Prompt to engine",
+              "description": "Prompt built by _build_prompt, includes target text (t1); engine.generate, no guardrails (t3).",
+              "threats": [
+                {
+                  "id": "t9",
+                  "number": 9,
+                  "status": "Mitigated",
+                  "severity": "Low",
+                  "type": "Information disclosure",
+                  "title": "Secrets reaching the model through the prompt",
+                  "description": "Checked the only prompt in the repo.",
+                  "mitigation": "yo_mama/yo_mama_generator.py:_build_prompt builds the prompt from a fixed template plus flavor (validated against FLAVORS in generate_joke), two clamped integers and the target name. No config value, token or key is read into it. A model can only leak what it is given, so the key and bot tokens are not reachable through the model. The user-supplied target is the one free-text input (t1)."
+                }
+              ]
+            }
+          },
+          {
+            "id": "f10",
+            "shape": "flow",
+            "source": {
+              "cell": "p4"
+            },
+            "target": {
+              "cell": "e3"
+            },
+            "data": {
+              "name": "Prompt over HTTPS",
+              "description": "Gemini API call with the API key; prompt leaves the trust boundary (t12).",
+              "threats": [
+                {
+                  "id": "t12",
+                  "number": 12,
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Information disclosure",
+                  "title": "Prompts and chat-supplied names go to a third party, and Ollama traffic defaults to plain http",
+                  "description": "With LLM_PROVIDER=gemini (the default, config.py:llm_provider) every prompt, including the user-supplied target and mentioned users' display names, is sent to Google. The Ollama client defaults to the http scheme (hypeman-social v0.3.4 ollama.py builds http://host:port), so on a LAN the prompts and jokes are unencrypted unless the operator sets an https host. The privacy notice, if any, is not in the files read. UNVERIFIED: README/BOT_SETUP wording about this.",
+                  "mitigation": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "f11",
+            "shape": "flow",
+            "source": {
+              "cell": "p4"
+            },
+            "target": {
+              "cell": "e4"
+            },
+            "data": {
+              "name": "Prompt to Ollama",
+              "description": "Ollama client to LLM_OLLAMA_HOST, http by default (t12).",
+              "threats": []
+            }
+          },
+          {
+            "id": "f12",
+            "shape": "flow",
+            "source": {
+              "cell": "e3"
+            },
+            "target": {
+              "cell": "p4"
+            },
+            "data": {
+              "name": "Model text back",
+              "description": "Untrusted model output returns to the bot.",
+              "threats": []
+            }
+          },
+          {
+            "id": "f13",
+            "shape": "flow",
+            "source": {
+              "cell": "p4"
+            },
+            "target": {
+              "cell": "p3"
+            },
+            "data": {
+              "name": "Joke or None",
+              "description": "Output is stripped and returned; no content check beyond emptiness.",
+              "threats": [
+                {
+                  "id": "t3",
+                  "number": 3,
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "title": "Model output is posted publicly with no moderation or length handling",
+                  "description": "yo_mama/yo_mama_generator.py:generate_joke calls engine.generate(prompt), the raw call, not the library's generate_validated/apply_guardrails path, so the profanity, length and hallucination checks in hypeman-social are not applied (read in hypeman-social v0.3.4 hypeman_social/llm/manager.py). The only output limit is the library's LLM_MAX_TOKENS default of 150 (base.py). The text goes into a Discord embed or a plain message: discord_bot.py:joke_text/random_text/thegame_text use ctx.send(f'... {joke}'), Mentions are now handled on Discord: the client default and every send pass allowed_mentions with nothing parsed (discord_bot.py:NO_MENTIONS; tests/test_abuse_controls.py::test_sends_never_parse_mentions), so a model that emits @everyone or a user mention cannot ping. Matrix sends plain-text body and HTML formatted_body and has no equivalent change. No Gemini safety settings were seen in hypeman-social v0.3.4 gemini.py, so provider defaults apply. UNVERIFIED: the exact provider default filter behavior.",
+                  "mitigation": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "f14",
+            "shape": "flow",
+            "source": {
+              "cell": "a3"
+            },
+            "target": {
+              "cell": "p5"
+            },
+            "data": {
+              "name": "CLI and settings",
+              "description": "Interactive/CLI input is operator-trusted; --target reaches the same prompt.",
+              "threats": []
+            }
+          },
+          {
+            "id": "f15",
+            "shape": "flow",
+            "source": {
+              "cell": "p5"
+            },
+            "target": {
+              "cell": "s1"
+            },
+            "data": {
+              "name": "Read config and secrets",
+              "description": "get_secret falls back to the environment and .env (dotenv).",
+              "threats": []
+            }
+          },
+          {
+            "id": "f16",
+            "shape": "flow",
+            "source": {
+              "cell": "p5"
+            },
+            "target": {
+              "cell": "e5"
+            },
+            "data": {
+              "name": "Fetch secrets",
+              "description": "Doppler token to list a whole config on each lookup (t15).",
+              "threats": []
+            }
+          },
+          {
+            "id": "f17",
+            "shape": "flow",
+            "source": {
+              "cell": "p6"
+            },
+            "target": {
+              "cell": "s2"
+            },
+            "data": {
+              "name": "Build and publish",
+              "description": "Image built and pushed to GHCR on main and tags (release.yml).",
+              "threats": [
+                {
+                  "id": "t18",
+                  "number": 18,
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Tampering",
+                  "title": "UNVERIFIED: image signing, SBOM and provenance are implemented in the shared GYST workflows",
+                  "description": "UNVERIFIED: SECURITY.md and the header of .github/workflows/release.yml state that the image is signed with cosign and carries an SBOM and build provenance, and verify.yml verifies it nightly, but the steps themselves live in ChiefGyk3D/git-your-ship-together, which was not read for this model.",
+                  "mitigation": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "f18",
+            "shape": "flow",
+            "source": {
+              "cell": "s2"
+            },
+            "target": {
+              "cell": "p7"
+            },
+            "data": {
+              "name": "Pull image",
+              "description": "Operator pulls and runs the image.",
+              "threats": []
+            }
+          },
+          {
+            "id": "f19",
+            "shape": "flow",
+            "source": {
+              "cell": "p3"
+            },
+            "target": {
+              "cell": "p5"
+            },
+            "data": {
+              "name": "Env write",
+              "description": "GEMINI_API_KEY copied into os.environ (t11).",
+              "threats": []
+            }
+          }
+        ]
+      }
+    ],
+    "threatTop": 20
+  }
+}
