@@ -31,4 +31,4 @@ matrix-nio==0.26.0
 
 # Testing dependencies
 pytest==9.1.1
-pytest-asyncio==1.4.0
+pytest-asyncio==1.4.1.post1
