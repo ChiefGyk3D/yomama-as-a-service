@@ -689,6 +689,12 @@ Side effects may include: increased sass, improved roasting skills, and an uncon
 
 If you find YoMama-as-a-Service useful (or hilarious), consider supporting development:
 
+<div align="center">
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/A0A4E59UP)
+
+</div>
+
 **Donate**:
 
 <div align="center">
