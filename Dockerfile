@@ -4,7 +4,7 @@
 # Multi-stage build for YoMama-as-a-Service
 # The base image is pinned by digest so a rebuild is reproducible and a
 # retagged upstream image cannot slip in; Dependabot moves the digest.
-FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS builder
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS builder
 
 # Update OS packages and install build dependencies
 # Apt versions are left unpinned on purpose: the base image is pinned by digest,
@@ -32,7 +32,7 @@ RUN pip install --no-cache-dir --upgrade "pip>=25.3" && \
     pip install --no-cache-dir --require-hashes -r requirements.txt
 
 # Final stage
-FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
 
 # Update OS packages in final stage
 # Apt versions are left unpinned on purpose: the base image is pinned by digest,
